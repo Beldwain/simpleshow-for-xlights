@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimpleShow — xLights Sequence Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --midnight:#0B1026;
+  --panel:#131A38;
+  --panel-2:#1A2248;
+  --line:#2A3468;
+  --bulb-gold:#FFC94D;
+  --pix-red:#FF4D5E;
+  --pix-green:#3BE07C;
+  --pix-blue:#4DA6FF;
+  --ink:#E9ECFA;
+  --ink-dim:#9AA3CE;
+  --font-display:'Big Shoulders Display',Impact,sans-serif;
+  --font-body:'Public Sans',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ts:1.06;  /* text-size multiplier — "Normal" sits slightly above the old base */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 500px at 70% -10%, #1B2452 0%, transparent 60%),
+    var(--midnight);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:calc(15px*var(--ts));
+  line-height:1.55;
+}
+/* ---------- header with live bulb string (signature) ---------- */
+header{position:relative;padding:26px 28px 18px;border-bottom:1px solid var(--line)}
+#bulbs{position:absolute;top:0;left:0;width:100%;height:14px;display:block}
+header h1{
+  font-family:var(--font-display);font-weight:800;font-size:calc(34px*var(--ts));letter-spacing:.03em;
+  text-transform:uppercase;margin-top:8px;
+}
+header h1 span{color:var(--bulb-gold)}
+/* "xLights" — brand casing, letters lit like a string of pixels (not the logo) */
+header h1 .xl{font-size:calc(30px*var(--ts));font-weight:800;text-transform:none;letter-spacing:.02em}
+header h1 .xl i{font-style:normal;text-shadow:0 0 14px currentColor}
+header h1 .xl .lr{color:var(--pix-red)}
+header h1 .xl .lg{color:var(--pix-green)}
+header h1 .xl .lb{color:var(--pix-blue)}
+header h1 .xl .ly{color:var(--bulb-gold)}
+header p{color:var(--ink-dim);max-width:640px;margin-top:2px}
+/* ---------- text sizer (top right): 5 sizes for tired eyes ---------- */
+.textSizer{position:absolute;top:24px;right:28px;display:flex;align-items:center;gap:8px;z-index:5}
+.textSizer>span{font-family:var(--font-mono);font-size:calc(10px*var(--ts));color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em}
+.textSizer button{
+  background:none;border:1px solid var(--line);color:var(--ink-dim);cursor:pointer;
+  font-family:var(--font-mono);font-size:calc(10.5px*var(--ts));padding:4px 9px;
+}
+.textSizer button+button{border-left:0}
+.textSizer button:first-of-type{border-radius:7px 0 0 7px}
+.textSizer button:last-of-type{border-radius:0 7px 7px 0}
+.textSizer button.active{color:var(--bulb-gold);background:rgba(255,201,77,.1);box-shadow:inset 0 0 0 1px var(--bulb-gold)}
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 120px)}
+nav{border-right:1px solid var(--line);padding:22px 0}
+nav button{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:none;border:0;color:var(--ink-dim);font:inherit;font-weight:500;
+  padding:12px 20px;cursor:pointer;border-left:3px solid transparent;
+}
+nav button .dot{
+  width:22px;height:22px;border-radius:50%;flex:none;
+  border:2px solid var(--line);display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:calc(11px*var(--ts));color:var(--ink-dim);
+}
+nav button.active{color:var(--ink);border-left-color:var(--bulb-gold);background:rgba(255,201,77,.05)}
+nav button.active .dot{border-color:var(--bulb-gold);color:var(--bulb-gold)}
+nav button.done .dot{background:var(--pix-green);border-color:var(--pix-green);color:#062812}
+nav button:disabled{opacity:.45;cursor:not-allowed}
+main{padding:26px 34px 60px;max-width:1720px} /* desktop-first: give the previews room */
+h2{font-family:var(--font-display);font-weight:700;font-size:calc(24px*var(--ts));text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.sub{color:var(--ink-dim);margin-bottom:18px}
+.panel{display:none}
+.panel.active{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.card h3{font-family:var(--font-display);font-weight:700;font-size:calc(17px*var(--ts));letter-spacing:.05em;text-transform:uppercase;color:var(--bulb-gold);margin-bottom:8px}
+/* drop zones */
+.drop{
+  border:2px dashed var(--line);border-radius:10px;padding:34px;text-align:center;
+  color:var(--ink-dim);cursor:pointer;transition:border-color .15s,background .15s;
+}
+.drop:hover,.drop.over{border-color:var(--bulb-gold);background:rgba(255,201,77,.04);color:var(--ink)}
+.drop strong{color:var(--ink)}
+.drop input{display:none}
+/* tables & chips */
+table{width:100%;border-collapse:collapse;font-size:calc(13.5px*var(--ts))}
+th{font-family:var(--font-mono);font-weight:600;font-size:calc(11px*var(--ts));text-transform:uppercase;letter-spacing:.08em;color:var(--ink-dim);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+td{padding:7px 10px;border-bottom:1px solid rgba(42,52,104,.5)}
+.chip{display:inline-block;font-family:var(--font-mono);font-size:calc(11px*var(--ts));padding:2px 9px;border-radius:20px;border:1px solid var(--line);color:var(--ink-dim)}
+.chip.face{border-color:var(--pix-red);color:var(--pix-red)}
+.chip.megatree{border-color:var(--pix-green);color:var(--pix-green)}
+.chip.matrix{border-color:var(--pix-blue);color:var(--pix-blue)}
+.chip.outline{border-color:var(--bulb-gold);color:var(--bulb-gold)}
+select.roleSel{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;font:inherit;font-size:calc(13px*var(--ts));padding:3px 6px}
+/* buttons */
+.btn{
+  font-family:var(--font-display);font-weight:700;font-size:calc(16px*var(--ts));letter-spacing:.06em;text-transform:uppercase;
+  background:var(--bulb-gold);color:#231a05;border:0;border-radius:8px;padding:11px 22px;cursor:pointer;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--bulb-gold);border:1px solid var(--bulb-gold)}
+.btn.small{font-size:calc(13px*var(--ts));padding:7px 14px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:14px 0}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.stat b{display:block;font-family:var(--font-mono);font-size:calc(20px*var(--ts));color:var(--bulb-gold)}
+.stat span{font-size:calc(12px*var(--ts));color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em}
+/* canvases */
+canvas.viz{width:100%;background:#080D20;border:1px solid var(--line);border-radius:10px;display:block}
+/* forms */
+textarea{width:100%;min-height:180px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;padding:12px;resize:vertical}
+label.opt{display:flex;gap:10px;align-items:center;margin:8px 0;color:var(--ink-dim)}
+label.opt select,label.opt input[type=range]{accent-color:var(--bulb-gold)}
+label.opt select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
+.note{font-size:calc(13px*var(--ts));color:var(--ink-dim);border-left:3px solid var(--line);padding:6px 12px;margin-top:10px}
+.note.gold{border-left-color:var(--bulb-gold)}
+.timeline{font-family:var(--font-mono);font-size:calc(12px*var(--ts))}
+.seclabel{display:inline-block;padding:1px 8px;border-radius:4px;margin:2px 4px 2px 0}
+.sec-quiet{background:#1E2A5E}.sec-verse{background:#2A3F8F}.sec-build{background:#8F6A2A}.sec-chorus{background:#8F2A3A}
+.hidden{display:none}
+progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  nav{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:6px 0}
+  nav button{width:auto;border-left:0;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.active{border-bottom-color:var(--bulb-gold)}
+}
+@media (prefers-reduced-motion:reduce){ #bulbs{display:none} }
+:focus-visible{outline:2px solid var(--bulb-gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <canvas id="bulbs" height="14"></canvas>
+  <h1>Simple<span>Show</span> <small style="font-family:var(--font-mono);font-size:calc(12px*var(--ts));color:var(--ink-dim);letter-spacing:.1em">FOR</small>
+    <span class="xl"><i class="ly">x</i><i class="lr">L</i><i class="lg">i</i><i class="lb">g</i><i class="ly">h</i><i class="lr">t</i><i class="lg">s</i></span></h1>
+  <p>Load your xLights layout, drop in a song, and generate a beat-synced sequence — singing faces, mega tree, arches and all — exported as a .xsq you can open in xLights.</p>
+  <div class="textSizer" id="textSizer" title="Text size">
+    <span>Text</span><button data-ts="0.88">XXS</button><button data-ts="0.96">XS</button><button data-ts="1.06">Normal</button><button data-ts="1.22">XL</button><button data-ts="1.4">XXL</button>
+  </div>
+</header>
+
+<div class="app">
+<nav>
+  <button id="nav0" class="active" onclick="go(0)"><span class="dot">1</span>Layout</button>
+  <button id="nav1" onclick="go(1)" disabled><span class="dot">2</span>Music</button>
+  <button id="nav2" onclick="go(2)" disabled><span class="dot">3</span>Lyrics &amp; Faces</button>
+  <button id="nav3" onclick="go(3)" disabled><span class="dot">4</span>Generate</button>
+  <button id="nav4" onclick="go(4)" disabled><span class="dot">5</span>Preview &amp; Export</button>
+</nav>
+<main>
+
+<!-- STEP 1: LAYOUT -->
+<section class="panel active" id="panel0">
+  <h2>1 · Load your layout</h2>
+  <p class="sub">Upload the <b>xlights_rgbeffects.xml</b> from your show folder. Every model is detected and given a role in the show — you can correct any role before moving on.</p>
+  <div class="drop" id="dropLayout" tabindex="0">
+    <strong>Drop xlights_rgbeffects.xml here</strong><br>or click to browse
+    <input type="file" id="fileLayout" accept=".xml">
+  </div>
+  <div id="layoutResults" class="hidden">
+    <div class="stats" id="layoutStats"></div>
+    <div class="card">
+      <h3>House preview</h3>
+      <canvas class="viz" id="houseCanvas" height="340"></canvas>
+      <p class="note">Every prop is drawn from its <b>actual pixels</b> — custom-model grids, tree cones, arches, forest spikes, icicle drops — at its world position, like the xLights layout view. Hover a prop for its name; <b>drag</b> to move it, <b>mouse-wheel</b> to resize it, <b>Shift+wheel</b> to rotate it, <b>Alt+wheel</b> to stretch it taller or shorter — handy for making forest spikes readable (all saved in this browser; your xLights layout file is untouched).</p>
+      <button class="btn small ghost" onclick="clearSavedPositions()" style="margin-top:6px">Forget dragged positions</button>
+      <button class="btn small ghost" onclick="clearSavedXforms()" style="margin-top:6px">Forget scale &amp; rotation</button>
+    </div>
+    <div class="card">
+      <h3>Detected models &amp; show roles</h3>
+      <div style="max-height:340px;overflow:auto"><table id="modelTable"></table></div>
+      <p class="note gold">Roles drive which effects each prop gets. Rows flagged <b style="color:var(--pix-red)">⚠ check</b> are the ones worth a look — hover a confidence chip to see why a role was picked. Corrections are saved in this browser and re-applied next time you load this layout.</p>
+      <button class="btn small ghost" onclick="clearSavedRoles()" style="margin-top:10px">Forget saved role corrections</button>
+    </div>
+    <button class="btn" onclick="finishStep(0)">Looks right — next: music</button>
+  </div>
+</section>
+
+<!-- STEP 2: MUSIC -->
+<section class="panel" id="panel1">
+  <h2>2 · Add the song</h2>
+  <p class="sub">The audio is analyzed right here in your browser: tempo, beat grid, bass hits, and song sections (verse / build / chorus) that drive the sequencing.</p>
+  <div class="drop" id="dropAudio" tabindex="0">
+    <strong>Drop an MP3 / WAV / M4A here</strong><br>or click to browse
+    <input type="file" id="fileAudio" accept="audio/*">
+  </div>
+  <p class="note gold hidden" id="restoreNote">Your lyrics and settings from last session were restored — audio can't be saved by the browser, so just drop the song back in and everything picks up where you left off.</p>
+  <div id="audioProgressWrap" class="hidden card"><h3>Analyzing…</h3><progress id="audioProgress" max="100" value="5"></progress><p class="note" id="audioProgressLabel">Decoding audio…</p></div>
+  <div id="audioResults" class="hidden">
+    <div class="stats" id="audioStats"></div>
+    <div class="card">
+      <h3>Energy &amp; sections</h3>
+      <canvas class="viz" id="waveCanvas" height="150"></canvas>
+      <p class="timeline" id="sectionLabels" style="margin-top:8px"></p>
+    </div>
+    <button class="btn" onclick="finishStep(1)">Next: lyrics &amp; faces</button>
+  </div>
+</section>
+
+<!-- STEP 3: LYRICS -->
+<section class="panel" id="panel2">
+  <h2>3 · Lyrics &amp; singing faces</h2>
+  <p class="sub">Paste or type the lyrics (one line per sung line), or load them from a text file. SimpleShow spreads them across the vocal parts of the song, breaks every word down into mouth-shape phonemes automatically, and casts your faces like a real act — a lead soloist or duet up front, everyone joining in on the chorus.</p>
+  <div class="card">
+    <h3>Lyrics</h3>
+    <textarea id="lyricsBox" placeholder="Paste lyrics here — one line per line — or drop a .txt file on this box.&#10;&#10;Leave empty for an instrumental-only show."></textarea>
+    <div class="row" style="margin-top:8px;align-items:center">
+      <button class="btn small ghost" onclick="document.getElementById('fileLyrics').click()">📄 Load lyrics from a text file</button>
+      <input type="file" id="fileLyrics" accept=".txt,.lrc,.text,text/plain" style="display:none">
+      <span class="timeline" style="color:var(--ink-dim)">.txt / .lrc — a timestamped .lrc brings its line timing along</span>
+    </div>
+    <div class="row" style="margin-top:8px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="lrcArtist" placeholder="Artist" style="width:170px">
+      <input type="text" id="lrcTitle" placeholder="Song title" style="width:210px">
+      <button class="btn small ghost" onclick="searchLrclib()">🌐 Find synced lyrics online</button>
+      <span class="timeline" style="color:var(--ink-dim)">searches the free lrclib.net database (sends only artist &amp; title)</span>
+    </div>
+    <div id="lrcResults" class="timeline" style="margin-top:4px"></div>
+    <label class="opt"><input type="checkbox" id="skipIntro" checked> Keep lyrics inside the sung parts — skip instrumental intro, outro, and mid-song breaks</label>
+    <label class="opt"><input type="checkbox" id="snapOnsets" checked> Snap lines and words to the nearest musical onset (fixes drifting lip sync)</label>
+    <label class="opt">Timing offset <input type="range" id="lyricsOffset" min="-2000" max="2000" step="50" value="0" style="width:220px"> <span id="lyricsOffsetLabel" class="timeline">0 ms</span></label>
+    <p class="note">Check the sync on step 5's live preview — the current word is highlighted as it plays. For the best line timing, use "Find synced lyrics online" or a timestamped .lrc: every line then starts exactly where a human synced it, and only the words inside each line are placed automatically. If everything is consistently early or late (a different edit of the song), drag the timing offset.</p>
+  </div>
+  <div class="card">
+    <h3>Face casting</h3>
+    <div id="vocalControls"></div>
+    <p class="note">Your lead (or duet) sings the verses; sections detected as <b>chorus</b> bring in every face as backup. Every word is broken down into Preston Blair mouth shapes (AI, E, O, U, FV, L, MBP, WQ, etc) right here — the exported <b>Lyrics</b> timing track carries lines, words, and phonemes, so faces sing in xLights with no manual breakdown step. Hover a line below to see its phonemes.</p>
+    <div id="faceCastList" class="timeline" style="margin-top:8px"></div>
+  </div>
+  <button class="btn" onclick="finishStep(2)">Next: generate the show</button>
+</section>
+
+<!-- STEP 4: GENERATE -->
+<section class="panel" id="panel3">
+  <h2>4 · Generate the show</h2>
+  <p class="sub">Pick a style and intensity. SimpleShow choreographs the display the way a sequencer does: model groups carry sweeps, chases and call-and-response; only a few prop families are loud at once so the hits land; special props stay dark until the ramps. Don't like this show? Roll a new seed.</p>
+  <div class="card">
+    <h3>Show style</h3>
+    <label class="opt">Palette
+      <select id="styleSel">
+        <optgroup label="Christmas">
+          <option value="traditional">Traditional — red / green / warm white</option>
+          <option value="icy">Winter Ice — blues / cyans / white</option>
+          <option value="candy">Candy — red / white / pink</option>
+          <option value="party">RGB Party — full spectrum</option>
+          <option value="goldwhite">Gold &amp; White — elegant warm</option>
+        </optgroup>
+        <optgroup label="US holidays">
+          <option value="halloween">Halloween — orange / purple / ghoul green</option>
+          <option value="thanksgiving">Thanksgiving — harvest ambers</option>
+          <option value="july4">Independence Day — red / white / blue</option>
+          <option value="valentine">Valentine's — reds / pinks</option>
+          <option value="stpatrick">St. Patrick's — greens / gold</option>
+          <option value="easter">Easter — spring pastels</option>
+          <option value="newyear">New Year's Eve — gold / silver / white</option>
+        </optgroup>
+        <optgroup label="Around the world">
+          <option value="diwali">Diwali — marigold / saffron / magenta</option>
+          <option value="holi">Holi — vivid festival colors</option>
+          <option value="hanukkah">Hanukkah — blue / white / silver</option>
+          <option value="eid">Eid — emerald / gold / white</option>
+          <option value="lunar">Lunar New Year — red / gold</option>
+          <option value="bonfire">Bonfire Night — fireworks over embers (UK)</option>
+          <option value="mardigras">Mardi Gras — purple / green / gold</option>
+          <option value="cinco">Cinco de Mayo — green / white / red</option>
+          <option value="australia">Australia — green &amp; gold summer</option>
+        </optgroup>
+        <optgroup label="Seasons">
+          <option value="spring">Spring Bloom — fresh greens / blossom</option>
+          <option value="summer">Summer Tropical — aqua / sunset</option>
+          <option value="autumn">Autumn Glow — oranges / deep reds</option>
+          <option value="winter">Deep Winter — ice / white (no holiday)</option>
+        </optgroup>
+      </select>
+    </label>
+    <label class="opt">Mood
+      <select id="moodSel">
+        <option value="gentle">Gentle — calm, roomy, no glitter</option>
+        <option value="classic" selected>Classic — the balanced default</option>
+        <option value="festive">Festive — livelier, extra sparkle</option>
+        <option value="party">Party — everything louder, hero barely rests</option>
+      </select>
+    </label>
+    <label class="opt">Intensity <input type="range" id="intensity" min="1" max="3" value="2"> <span id="intensityLabel">Balanced</span></label>
+    <label class="opt"><input type="checkbox" id="useShockwaves" checked> Shockwave + strobe accents on big bass hits</label>
+    <label class="opt"><input type="checkbox" id="useCanvasMoment" checked> One <b>whole-display moment</b> — once per show the entire display becomes a single graphic (a house-wide shader, slow rotation, or color fade)</label>
+    <label class="opt"><input type="checkbox" id="useVU" checked> VU-meter style effects on matrices during choruses</label>
+    <label class="opt">Show seed <input id="seedBox" class="timeline" style="width:120px;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px" placeholder="random"> <span class="timeline" style="color:var(--ink-dim)">same seed = same show</span></label>
+  </div>
+  <div class="card">
+    <h3>Layers &amp; moves</h3>
+    <label class="opt">Layering
+      <select id="layerDepth">
+        <option value="simple">Simple — one effect per element</option>
+        <option value="layered" selected>Layered — dim color bed under the moves (pro look)</option>
+        <option value="rich">Rich — bed + moves + sparkle overlay on choruses</option>
+      </select>
+    </label>
+    <div class="row" style="gap:14px;flex-wrap:wrap">
+      <label class="opt" style="margin:0"><input type="checkbox" id="mvSweep" checked> Spatial sweeps</label>
+      <label class="opt" style="margin:0"><input type="checkbox" id="mvChase" checked> Chases</label>
+      <label class="opt" style="margin:0"><input type="checkbox" id="mvPulse" checked> Beat pulses</label>
+      <label class="opt" style="margin:0"><input type="checkbox" id="mvCall" checked> Call &amp; response</label>
+      <label class="opt" style="margin:0"><input type="checkbox" id="mvFocus" checked> Focus rotation</label>
+    </div>
+    <label class="opt"><input type="checkbox" id="useUnison" checked> Unison hit on every build &amp; chorus start</label>
+    <label class="opt"><input type="checkbox" id="megaSpotlight" checked> <b>Mega tree spotlight</b> — the tree runs its own layered program: spirals trading with tendrils in verses, hero textures that rotate every chorus phrase (Butterfly / Curtain / fast Spirals / Tendril / bottom-up wipe / Pinwheel, with sparkle), Shockwave rings on every downbeat through builds, and bass-hit rings above it all</label>
+    <p class="note">Layered mode is how the pro sequences read: each active prop family keeps a dim wash of color on its bottom layer while chases, pulses and sweeps play on top (blended with <b>Max</b>, both here and in the exported .xsq). Untick a move to take it out of the vocabulary for this show — then reroll the seed.</p>
+  </div>
+  <div class="card" id="screensCard" style="display:none"></div>
+  <div class="row">
+    <button class="btn" id="genBtn" onclick="generateShow()">Generate sequence</button>
+    <button class="btn ghost" onclick="rerollSeed()">🎲 New show (new seed)</button>
+  </div>
+  <div id="genResults" class="hidden">
+    <div class="stats" id="genStats"></div>
+    <div class="card"><h3>Effect plan</h3><div id="planView" class="timeline" style="max-height:320px;overflow:auto"></div></div>
+    <button class="btn" onclick="finishStep(3)">Next: preview &amp; export</button>
+  </div>
+</section>
+
+<!-- STEP 5: PREVIEW & EXPORT -->
+<section class="panel" id="panel4">
+  <h2>5 · Preview &amp; export</h2>
+  <p class="sub">Driven by the actual effect plan: prop colors follow their planned effects, singing faces animate mouth shapes, and the current line plays karaoke-style so you can check the lip-sync. Click the strip below the preview to jump anywhere. Your real render still happens in xLights.</p>
+  <div class="card">
+    <h3>Live preview</h3>
+    <canvas class="viz" id="previewCanvas" height="360"></canvas>
+    <canvas class="viz" id="scrubCanvas" height="34" style="margin-top:8px;cursor:pointer" title="Click or drag to seek"></canvas>
+    <div class="row" style="margin-top:12px">
+      <button class="btn small" id="playBtn" onclick="togglePlay()">▶ Play</button>
+      <span class="timeline" id="playClock">0:00 / 0:00</span>
+      <span class="timeline" id="playSection"></span>
+      <label class="opt" style="margin:0">Lyric timing <input type="range" id="lyricsOffset2" min="-2000" max="2000" step="50" value="0" style="width:180px"> <span id="lyricsOffset2Label" class="timeline">0 ms</span></label>
+      <span class="timeline" id="playLyric" style="color:var(--bulb-gold)"></span>
+    </div>
+    <audio id="player"></audio>
+  </div>
+  <div class="card">
+    <h3>Fix the lyrics</h3>
+    <p class="note">Automatic timing won't be perfect. Click a line below to select it (and jump the player there), <b>drag it</b> to move it, nudge it by 50 ms, contract or expand its timing, snap its start to the playhead, change which face sings it and in what color, or <b>split it apart at any word</b>. Everything you fix is saved in this browser <i>for this song</i> — regenerate the show as often as you like and your timing stays.</p>
+    <canvas class="viz" id="facesCanvas" height="190" title="Just the singing faces — mouths animate as the song plays"></canvas>
+    <div id="faceArtRow" class="row" style="margin-top:6px;gap:8px;flex-wrap:wrap"></div>
+    <canvas class="viz" id="lyricEditCanvas" height="92" style="cursor:pointer;margin-top:10px"></canvas>
+    <div id="lineEditor" class="timeline" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn small ghost" onclick="resetLyricEdits()">Reset to automatic timing</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Export</h3>
+    <div class="row">
+      <button class="btn" onclick="downloadShowBundle()">⬇ Download show bundle (.zip)</button>
+      <button class="btn ghost" onclick="downloadXSQ()">Just the .xsq</button>
+      <button class="btn ghost" onclick="downloadReadme()">Download setup guide (.txt)</button>
+    </div>
+    <p class="note gold" style="margin-top:12px"><b>Import into xLights:</b> put the .xsq in your show folder next to xlights_rgbeffects.xml, open it in xLights, and point it at your audio file when prompted. The <b>Lyrics</b> timing track already carries the full phoneme breakdown, so the singing faces have mouth shapes immediately — no manual breakdown needed.</p>
+  </div>
+  <div class="card" id="videoGuide"></div>
+</section>
+
+</main>
+</div>
+<!-- Supporting modules — keep these files next to this HTML -->
+<script src="simpleshow-classify.js"></script>
+<script src="simpleshow-vocals.js"></script>
+<script src="simpleshow-choreo.js"></script>
+<script src="simpleshow-render.js"></script>
+<script src="simpleshow-lyric-editor.js"></script>
+<script src="simpleshow-screens.js"></script>
+<script>
+/* ================= state ================= */
+const S = {
+  models: [],           // {name, displayAs, role, x, y, w, h, nodes, stringType}
+  audio: null,          // {name, duration, sampleRate, buffer(Float32 mono)}
+  analysis: null,       // {bpm, beats[], downbeats[], sections[], energy[], bands, onsetTimes[]}
+  lyrics: null,         // {lines:[{text, words:[{text,start,end,vis,phones:[{v,start,end}]}], start, end, faces[]}]}
+  sequence: null,       // generated effect plan + xsq string
+  audioURL: null,
+  stepDone: [false,false,false,false,false],
+};
+const ROLES = ["Singing Face","Mega Tree","Mini Tree","Arch","Roof/Outline","Icicles","Star/Topper","Matrix/Screen","Spinner/Wreath","Candy Cane","Flood","Forest","Special/Accent","Generic Prop","Skip"];
+const ROLE_CHIP = {"Singing Face":"face","Mega Tree":"megatree","Matrix/Screen":"matrix","Roof/Outline":"outline"};
+
+/* ================= header bulb string (signature) ================= */
+(function(){
+  const c = document.getElementById('bulbs'), ctx = c.getContext('2d');
+  const colors = ['#FF4D5E','#3BE07C','#4DA6FF','#FFC94D'];
+  let phase = 0;
+  function draw(){
+    const w = c.width = c.offsetWidth;
+    ctx.clearRect(0,0,w,14);
+    ctx.strokeStyle = '#2A3468'; ctx.beginPath(); ctx.moveTo(0,4); ctx.lineTo(w,4); ctx.stroke();
+    const n = Math.floor(w/26);
+    for(let i=0;i<n;i++){
+      const x = 13+i*26;
+      let a = 0.35 + 0.65*Math.max(0, Math.sin(phase*0.9 + i*0.7));
+      if(S.playing && S.analysis){ a = 0.25 + 0.75*(S.beatPulse||0); }
+      ctx.globalAlpha = a;
+      ctx.fillStyle = colors[i%4];
+      ctx.beginPath(); ctx.arc(x,8,4,0,7); ctx.fill();
+      ctx.globalAlpha = a*0.35;
+      ctx.beginPath(); ctx.arc(x,8,7,0,7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    phase += 0.03;
+    requestAnimationFrame(draw);
+  }
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) draw();
+})();
+
+/* ================= navigation ================= */
+function go(i){
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active', j===i));
+  document.querySelectorAll('nav button').forEach((b,j)=>b.classList.toggle('active', j===i));
+  if(i===3 && typeof renderScreensCard==='function') renderScreensCard();
+  if(i===4) sizePreview();
+}
+function finishStep(i){
+  S.stepDone[i]=true;
+  document.getElementById('nav'+i).classList.add('done');
+  const next = document.getElementById('nav'+(i+1));
+  if(next){ next.disabled=false; go(i+1); }
+}
+
+/* ================= STEP 1: layout parsing ================= */
+const dropLayout = document.getElementById('dropLayout');
+wireDrop(dropLayout, document.getElementById('fileLayout'), f=>{
+  const r = new FileReader();
+  r.onload = ()=>parseLayout(r.result, f.name);
+  r.readAsText(f);
+});
+function wireDrop(zone, input, cb){
+  zone.addEventListener('click', ()=>input.click());
+  zone.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' ') input.click(); });
+  input.addEventListener('change', ()=>{ if(input.files[0]) cb(input.files[0]); });
+  zone.addEventListener('dragover', e=>{e.preventDefault(); zone.classList.add('over');});
+  zone.addEventListener('dragleave', ()=>zone.classList.remove('over'));
+  zone.addEventListener('drop', e=>{
+    e.preventDefault(); zone.classList.remove('over');
+    if(e.dataTransfer.files[0]) cb(e.dataTransfer.files[0]);
+  });
+}
+
+function parseLayout(xmlText, fname){
+  if(typeof classifyLayout!=='function' || typeof castVocals!=='function' || typeof choreograph!=='function' || typeof renderLyricEditor!=='function' || typeof drawHouse!=='function'){
+    alert('Supporting files missing: keep the simpleshow-*.js files in the same folder as this HTML.');
+    return;
+  }
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  if(doc.querySelector('parsererror')){ alert('Could not parse that file as XML. Make sure it is xlights_rgbeffects.xml.'); return; }
+  const nodes = [...doc.querySelectorAll('models > model')];
+  if(!nodes.length){ alert('No <model> entries found. This should be the xlights_rgbeffects.xml from your show folder.'); return; }
+  S.models = nodes.filter(n=>(n.getAttribute('DisplayAs')||'')!=='ModelGroup').map(n=>{
+    // newer xLights models carry NumStrings/NodesPerString instead of parm1/parm2
+    let p1=parseInt(n.getAttribute('parm1')||'0'), p2=parseInt(n.getAttribute('parm2')||'0');
+    if(!(p1*p2)){
+      const ns=parseInt(n.getAttribute('NumStrings')||'0'), nps=parseInt(n.getAttribute('NodesPerString')||'0');
+      if(ns*nps){ p1=ns; p2=nps; }
+    }
+    if(!(p1*p2)){ // Arches models store their counts as NumArches/NodesPerArch
+      const na=parseInt(n.getAttribute('NumArches')||'0'), npa=parseInt(n.getAttribute('NodesPerArch')||'0');
+      if(na*npa){ p1=na; p2=npa; }
+    }
+    const m={
+      name: n.getAttribute('name')||'unnamed',
+      displayAs: n.getAttribute('DisplayAs')||'',
+      stringType: n.getAttribute('StringType')||'',
+      x: parseFloat(n.getAttribute('WorldPosX')||'NaN'),
+      y: parseFloat(n.getAttribute('WorldPosY')||'NaN'),
+      w: Math.abs(parseFloat(n.getAttribute('ScaleX')||'1'))*100,
+      h: Math.abs(parseFloat(n.getAttribute('ScaleY')||'1'))*100,
+      parm1: p1, parm2: p2,
+      hasFaceDef: !!n.querySelector('faceInfo'),
+      // the face definition's name goes into every exported Faces effect —
+      // without it xLights falls back to its default rendered face, which
+      // draws nothing useful on custom props (singing bulbs, coro faces)
+      faceDef: (fi=>fi?{name:(fi.getAttribute('Name')||'').replace(/,/g,' '), type:fi.getAttribute('Type')||''}:null)(n.querySelector('faceInfo')),
+      submodels: [...n.querySelectorAll('subModel')].map(s=>s.getAttribute('name')||''),
+    };
+    parseModelGeometry(n, m);     // simpleshow-render.js — real node geometry
+    return m;
+  });
+  applyChanOverrides(S.models);   // RGB / RGBW / single-color capability
+  applyPosOverrides(S.models);    // dragged prop positions from earlier sessions
+  applyXformOverrides(S.models);  // per-prop scale & rotation from earlier sessions
+  // model groups (both storage styles) become classification hints for their members
+  S.groups = [];
+  const addGroup = n=>{ S.groups.push({ name:n.getAttribute('name')||'', members:(n.getAttribute('models')||'').split(',') }); };
+  doc.querySelectorAll('modelGroups > modelGroup').forEach(addGroup);
+  nodes.filter(n=>(n.getAttribute('DisplayAs')||'')==='ModelGroup').forEach(addGroup);
+  runClassification();
+  renderLayoutResults(fname);
+}
+
+function runClassification(){
+  classifyLayout(S.models, S.groups||[]);   // simpleshow-classify.js
+  // biggest tree becomes THE mega tree; other auto-detected trees are mini trees
+  const trees = S.models.filter(m=>m.role==='Mega Tree' && m.conf!=='user');
+  if(trees.length>1){
+    trees.sort((a,b)=>(b.parm1*b.parm2)-(a.parm1*a.parm2));
+    trees.slice(1).forEach(t=>t.role='Mini Tree');
+  }
+  S.models.forEach(m=>{ delete m._nodes; delete m._big; });   // geometry depends on roles (floods)
+}
+function clearSavedRoles(){
+  clearRoleOverrides();
+  runClassification();
+  renderLayoutResults();
+}
+
+const CONF_BADGE = {
+  user:  ['saved',      '#3BE07C'],
+  high:  ['✓ high',     '#3BE07C'],
+  medium:['~ medium',   '#FFC94D'],
+  low:   ['⚠ check',    '#FF4D5E'],
+};
+function renderLayoutResults(fname){
+  document.getElementById('layoutResults').classList.remove('hidden');
+  const faces = S.models.filter(m=>m.role==='Singing Face').length;
+  const review = S.models.filter(m=>m.conf==='low').length;
+  const stats = [
+    [S.models.length,'models found'],
+    [faces,'singing faces'],
+    [S.models.filter(m=>m.role==='Mega Tree').length,'mega tree'],
+    [S.models.filter(m=>m.role==='Matrix/Screen').length,'matrices / screens'],
+    [review,'roles to review'],
+  ];
+  document.getElementById('layoutStats').innerHTML =
+    stats.map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const rows = S.models.map((m,i)=>{
+    const [label,color] = CONF_BADGE[m.conf]||CONF_BADGE.low;
+    return `
+    <tr${m.conf==='low'?' style="background:rgba(255,77,94,.06)"':''}><td>${esc(m.name)}</td><td class="timeline" style="color:var(--ink-dim)">${esc(m.displayAs)}</td>
+    <td><span class="chip ${ROLE_CHIP[m.role]||''}">${m.role}</span></td>
+    <td><span class="chip" style="border-color:${color};color:${color}" title="${esc(m.why||'')}">${label}</span></td>
+    <td><select class="roleSel" onchange="setRole(${i},this.value)">${
+      ROLES.map(r=>`<option ${r===m.role?'selected':''}>${r}</option>`).join('')
+    }</select></td>
+    <td><select class="roleSel" onchange="setChan(${i},this.value)" title="Detected from StringType: ${esc(m.stringType||'?')}">${
+      ['RGB','RGBW','single'].map(ch=>`<option value="${ch}" ${ch===m.chan?'selected':''}>${ch==='single'?'Single color':ch}</option>`).join('')
+    }</select>${m.chan==='single'
+      ? ` <input type="color" value="${m.fixedColor||'#FFFFFF'}" onchange="setChanColor(${i},this.value)" title="This string's one color" style="width:26px;height:20px;vertical-align:middle">`
+      : ''}</td></tr>`;
+  }).join('');
+  document.getElementById('modelTable').innerHTML =
+    `<tr><th>Model</th><th>Type</th><th>Detected role</th><th>Confidence</th><th>Override</th><th>Lights</th></tr>${rows}`;
+  drawHouse();
+}
+function setRole(i,v){
+  S.models[i].role=v; S.models[i].conf='user'; S.models[i].why='set by you just now';
+  delete S.models[i]._nodes; delete S.models[i]._big;   // geometry depends on the role (floods)
+  saveRoleOverride(S.models[i].name, v);   // remembered for future runs on this layout
+  renderLayoutResults();
+}
+/* single color / RGB / RGBW — what the string can physically show */
+function setChan(i,v){
+  const m=S.models[i];
+  m.chan=v; m.chanUser=true;
+  if(v==='single' && !m.fixedColor) m.fixedColor='#FFFFFF';
+  saveChanOverride(m.name, m.chan, m.chan==='single'?m.fixedColor:null);
+  if(S.sequence) generateShow();   // palettes depend on this
+  renderLayoutResults();
+}
+function setChanColor(i,v){
+  const m=S.models[i];
+  m.fixedColor=v; m.chanUser=true;
+  saveChanOverride(m.name, m.chan, v);
+  if(S.sequence) generateShow();
+  renderLayoutResults();
+}
+function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+const ROLE_COLOR = {
+  'Singing Face':'#FF4D5E','Mega Tree':'#3BE07C','Mini Tree':'#2AAE5F','Arch':'#B84DFF',
+  'Roof/Outline':'#FFC94D','Icicles':'#7FD9FF','Star/Topper':'#FFF3B0','Matrix/Screen':'#4DA6FF',
+  'Spinner/Wreath':'#FF9F4D','Candy Cane':'#FF8FA3','Flood':'#9AA3CE',
+  'Forest':'#00C2A8','Special/Accent':'#E67ED2','Generic Prop':'#6B76B8','Skip':'#333'
+};
+/* drawHouse / hover / drag live in simpleshow-render.js — real node geometry */
+wireHouseCanvas(); wirePreviewHover();
+</script>
+<script>
+/* ================= STEP 2: audio analysis ================= */
+wireDrop(document.getElementById('dropAudio'), document.getElementById('fileAudio'), async f=>{
+  const wrap = document.getElementById('audioProgressWrap');
+  wrap.classList.remove('hidden');
+  setProg(8,'Decoding audio…');
+  const arr = await f.arrayBuffer();
+  const ac = new (window.AudioContext||window.webkitAudioContext)();
+  let buf;
+  try { buf = await ac.decodeAudioData(arr); }
+  catch(e){ alert('Could not decode that audio file. Try an MP3 or WAV.'); wrap.classList.add('hidden'); return; }
+  if(S.audioURL) URL.revokeObjectURL(S.audioURL);
+  S.audioURL = URL.createObjectURL(f);
+  document.getElementById('player').src = S.audioURL;
+  // mono downmix
+  const n = buf.length, mono = new Float32Array(n);
+  for(let ch=0; ch<buf.numberOfChannels; ch++){
+    const d = buf.getChannelData(ch);
+    for(let i=0;i<n;i++) mono[i]+=d[i]/buf.numberOfChannels;
+  }
+  S.audio = { name:f.name, duration:buf.duration, sampleRate:buf.sampleRate, mono };
+  loadLrcTimes();   // synced line timing saved for this song earlier
+  const gat=guessArtistTitle(f.name);
+  const aEl=document.getElementById('lrcArtist'), tEl=document.getElementById('lrcTitle');
+  if(aEl && !aEl.value) aEl.value=gat.artist;
+  if(tEl && !tEl.value) tEl.value=gat.title;
+  setProg(25,'Computing spectral flux…');
+  setTimeout(()=>analyze(mono, buf.sampleRate), 30);
+});
+function setProg(v,l){ document.getElementById('audioProgress').value=v; document.getElementById('audioProgressLabel').textContent=l; }
+
+/* small radix-2 FFT (real input, magnitudes) */
+function fftMag(re){
+  const N = re.length, im = new Float32Array(N);
+  for(let i=1,j=0;i<N;i++){ let bit=N>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit;
+    if(i<j){ const t=re[i]; re[i]=re[j]; re[j]=t; } }
+  for(let len=2; len<=N; len<<=1){
+    const ang = -2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<N;i+=len){
+      let cr=1, ci=0;
+      for(let k=0;k<len/2;k++){
+        const ur=re[i+k], ui=im[i+k];
+        const vr=re[i+k+len/2]*cr - im[i+k+len/2]*ci;
+        const vi=re[i+k+len/2]*ci + im[i+k+len/2]*cr;
+        re[i+k]=ur+vr; im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr; im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+  const mag = new Float32Array(N/2);
+  for(let i=0;i<N/2;i++) mag[i]=Math.hypot(re[i],im[i]);
+  return mag;
+}
+
+function analyze(mono, sr){
+  const FS=1024, HOP=512, nF=Math.floor((mono.length-FS)/HOP);
+  const hann = new Float32Array(FS);
+  for(let i=0;i<FS;i++) hann[i]=0.5-0.5*Math.cos(2*Math.PI*i/FS);
+  const flux = new Float32Array(nF), energy = new Float32Array(nF);
+  const bass = new Float32Array(nF), mid = new Float32Array(nF), high = new Float32Array(nF);
+  const binHz = sr/FS, bassMax=Math.floor(250/binHz), midMax=Math.floor(2000/binHz);
+  let prev = new Float32Array(FS/2);
+  const frame = new Float32Array(FS);
+  for(let f=0; f<nF; f++){
+    for(let i=0;i<FS;i++) frame[i]=mono[f*HOP+i]*hann[i];
+    const mag = fftMag(frame.slice());
+    let fl=0,e=0,b=0,m=0,h=0;
+    for(let i=1;i<FS/2;i++){
+      const d = mag[i]-prev[i]; if(d>0) fl+=d;
+      e += mag[i]*mag[i];
+      if(i<=bassMax) b+=mag[i]; else if(i<=midMax) m+=mag[i]; else h+=mag[i];
+    }
+    flux[f]=fl; energy[f]=Math.sqrt(e); bass[f]=b; mid[f]=m; high[f]=h;
+    prev = mag;
+  }
+  setProg(55,'Finding the tempo…');
+  const fps = sr/HOP;
+  // music extent: trim leading/trailing silence (radio rips, padded files) so
+  // it can't skew section thresholds or stretch the lyric span over dead air
+  const preE = new Float64Array(nF+1);
+  for(let i=0;i<nF;i++) preE[i+1]=preE[i]+energy[i];
+  const SW = Math.max(1, Math.round(fps*0.4));
+  const eSm = new Float32Array(nF);
+  for(let i=0;i<nF;i++){ const a=Math.max(0,i-SW), b=Math.min(nF,i+SW+1); eSm[i]=(preE[b]-preE[a])/(b-a); }
+  const eSort=[...eSm].sort((a,b)=>a-b);
+  const silThr = (eSort[Math.floor(0.95*(nF-1))]||0)*0.04;
+  let sF=0; while(sF<nF && eSm[sF]<silThr) sF++;
+  let eF=nF-1; while(eF>sF && eSm[eF]<silThr) eF--;
+  let musicStart = Math.max(0, sF/fps-0.2), musicEnd = Math.min(S.audio.duration, (eF+1)/fps+0.2);
+  if(sF>=eF){ musicStart=0; musicEnd=S.audio.duration; } // whole file silent-ish: don't trim
+  // normalize flux by local mean → onset envelope
+  const env = new Float32Array(nF);
+  const W = Math.round(fps*0.7);
+  // vocal-leaning onset envelope: mid-band rises only — kicks are bass-heavy
+  // and hi-hats high-heavy, so this keeps word snapping off the drums
+  const vraw = new Float32Array(nF);
+  for(let i=1;i<nF;i++) vraw[i]=Math.max(0, mid[i]-mid[i-1]);
+  const venv = new Float32Array(nF);
+  for(let i=0;i<nF;i++){
+    let s=0,c=0;
+    for(let j=Math.max(0,i-W); j<Math.min(nF,i+W); j++){ s+=vraw[j]; c++; }
+    venv[i]=Math.max(0, vraw[i]-1.15*(s/c));
+  }
+  for(let i=0;i<nF;i++){
+    let s=0,c=0;
+    for(let j=Math.max(0,i-W); j<Math.min(nF,i+W); j++){ s+=flux[j]; c++; }
+    env[i]=Math.max(0, flux[i]-1.15*(s/c));
+  }
+  // tempo via autocorrelation of onset envelope (60–180 BPM)
+  const corrAt = lag => { let s=0; for(let i=0;i<nF-lag;i++) s+=env[i]*env[i+lag]; return s; };
+  const rawAt = bpm => {
+    const lag = fps*60/bpm, l0=Math.floor(lag), fr=lag-l0;
+    return corrAt(l0)*(1-fr)+corrAt(l0+1)*fr;                  // interpolated autocorrelation
+  };
+  let best={bpm:120, score:-1};
+  for(let bpm=60; bpm<=180; bpm+=0.5){
+    const sc=rawAt(bpm)*(1 - Math.abs(bpm-118)/600);           // gentle mid-tempo prior
+    if(sc>best.score) best={bpm,score:sc};
+  }
+  // octave fix: fractional lags defeat autocorrelation at this frame rate, so
+  // compare octaves by summing onset energy along an actual (float-period) beat grid
+  const gridSum = bpm => {
+    const per = fps*60/bpm; let bs=-1;
+    for(let off=0; off<per; off+=0.5){
+      let s=0; for(let t=off; t<nF; t+=per) s += env[Math.round(t)]||0;
+      if(s>bs) bs=s;
+    }
+    return bs;
+  };
+  if(best.bpm<=100 && best.bpm*2<=190 && gridSum(best.bpm*2) >= 1.55*gridSum(best.bpm))
+    best={bpm:best.bpm*2, score:best.score};
+  const period = fps*60/best.bpm;
+  // beats: dynamic-programming beat tracking (Ellis 2007 — the same family of
+  // tracker as the QM Vamp plugin, in pure JS since the browser can't load
+  // native Vamp plugins). A rigid grid slides off the music whenever the band
+  // isn't metronome-perfect; the DP lets each beat snap to a real onset while
+  // paying a cost for straying from the tempo, so the grid bends with the song.
+  let beats=[];
+  {
+    const sd=Math.sqrt(env.reduce((a,v)=>a+v*v,0)/nF)||1;
+    // local score: gaussian-smoothed onset strength (σ ≈ period/32 frames)
+    const halfW=Math.max(2,Math.round(period/8)), local=new Float32Array(nF);
+    for(let i=0;i<nF;i++){
+      let s=0;
+      for(let j=Math.max(0,i-halfW); j<Math.min(nF,i+halfW+1); j++)
+        s += (env[j]/sd)*Math.exp(-0.5*((j-i)*32/period)**2);
+      local[i]=s;
+    }
+    const tight=100, score=new Float32Array(nF), back=new Int32Array(nF).fill(-1);
+    const farJ=Math.round(period*2), nearJ=Math.max(1,Math.round(period/2));
+    for(let i=0;i<nF;i++){
+      let bs=-Infinity, bj=-1;
+      for(let j=Math.max(0,i-farJ); j<=i-nearJ; j++){
+        const v=score[j]-tight*Math.log((i-j)/period)**2;
+        if(v>bs){ bs=v; bj=j; }
+      }
+      score[i]=local[i];
+      if(bj>=0 && bs>0){ score[i]+=bs; back[i]=bj; }
+    }
+    // backtrace from the best-scoring frame near the end of the music
+    const eLim=Math.min(nF-1, Math.round(musicEnd*fps));
+    let endI=-1, endS=-Infinity;
+    for(let i=Math.max(0,eLim-farJ); i<=eLim; i++)
+      if(score[i]>endS){ endS=score[i]; endI=i; }
+    for(let i=endI; i>=0; i=back[i]){ beats.push(i/fps); if(back[i]<0) break; }
+    beats.reverse();
+    beats=beats.filter(t=>t>=musicStart-0.5 && t<=musicEnd+0.5);
+  }
+  if(beats.length>=16){
+    // report the tempo the tracker actually followed, not the autocorrelation guess
+    const ibis=beats.slice(1).map((t,i)=>t-beats[i]).sort((a,b)=>a-b);
+    const med=ibis[Math.floor(ibis.length/2)];
+    if(med>0.2 && med<1.5) best={bpm:60/med, score:best.score};
+  } else {
+    // degenerate / near-silent input: fall back to the rigid grid
+    let bestOff=0, bestSum=-1;
+    for(let off=0; off<period; off+=1){
+      let s=0;
+      for(let t=off; t<nF; t+=period) s += env[Math.round(t)]||0;
+      if(s>bestSum){ bestSum=s; bestOff=off; }
+    }
+    beats=[]; for(let t=bestOff; t<nF; t+=period) beats.push(t/fps);
+  }
+  // downbeat: pick 4-beat phase with max bass at beats
+  const bassAt = i => bass[Math.min(nF-1,Math.round(beats[i]*fps))]||0;
+  let dbPhase=0, dbBest=-1;
+  for(let p=0;p<4;p++){ let s=0; for(let i=p;i<beats.length;i+=4) s+=bassAt(i); if(s>dbBest){dbBest=s;dbPhase=p;} }
+  const downbeats = beats.filter((_,i)=>i%4===dbPhase%4);
+  setProg(75,'Segmenting sections…');
+  // sections: per-bar smoothed energy → classify by percentile, merge runs
+  const barE=[]; 
+  for(let i=dbPhase;i<beats.length-4;i+=4){
+    const a=Math.round(beats[i]*fps), b=Math.round(beats[i+4]*fps);
+    let s=0; for(let j=a;j<b;j++) s+=energy[j]; barE.push({t:beats[i], e:s/(b-a||1)});
+  }
+  // classify against percentiles of the *music* only — silent lead-in/out bars
+  // would otherwise drag the thresholds down and misgrade everything else
+  const barLen = 4*60/best.bpm;
+  const inMusic = b => b.t+barLen/2>=musicStart && b.t+barLen/2<=musicEnd;
+  const actE = barE.filter(inMusic).map(b=>b.e);
+  const sortedE=(actE.length?actE:barE.map(b=>b.e)).sort((a,b)=>a-b);
+  const pct = q => sortedE[Math.floor(q*(sortedE.length-1))]||0;
+  const q35=pct(0.35), q60=pct(0.6), q82=pct(0.82);
+  const kinds = barE.map(b=> !inMusic(b)?'quiet' : b.e<q35?'quiet' : b.e<q60?'verse' : b.e<q82?'build':'chorus');
+  // smooth: min 2 bars
+  for(let i=1;i<kinds.length-1;i++) if(kinds[i]!==kinds[i-1]&&kinds[i]!==kinds[i+1]) kinds[i]=kinds[i-1];
+  const sections=[];
+  for(let i=0;i<barE.length;i++){
+    if(!sections.length || sections[sections.length-1].kind!==kinds[i])
+      sections.push({kind:kinds[i], start:barE[i].t, end:barE[i].t});
+    sections[sections.length-1].end = (barE[i+1]?barE[i+1].t:S.audio.duration);
+  }
+  if(sections.length) sections[sections.length-1].end = S.audio.duration;
+  // strong bass hits (top flux+bass peaks, min 1.2s apart)
+  const hits=[];
+  const thr = pct(0.9);
+  for(let i=1;i<barE.length;i++){} // placeholder
+  const bassSorted=[...bass].sort((a,b)=>a-b);
+  const bThr = bassSorted[Math.floor(0.985*bass.length)];
+  let last=-10;
+  for(let i=2;i<nF-2;i++){
+    const tS=i/fps;
+    if(bass[i]>bThr && bass[i]>=bass[i-1] && bass[i]>=bass[i+1] && tS-last>1.2 && tS>=musicStart && tS<=musicEnd){
+      hits.push(tS); last=tS;
+    }
+  }
+  S.analysis = { bpm:Math.round(best.bpm*10)/10, beats, downbeats, sections, energy, bass, mid, high, fps, hits, dbPhase, musicStart, musicEnd, env, venv };
+  setProg(100,'Done');
+  setTimeout(renderAudioResults, 150);
+}
+
+function renderAudioResults(){
+  document.getElementById('audioProgressWrap').classList.add('hidden');
+  document.getElementById('audioResults').classList.remove('hidden');
+  const A=S.analysis, dur=S.audio.duration;
+  document.getElementById('audioStats').innerHTML = [
+    [A.bpm+' BPM','tempo'],[fmt(dur),'length'],
+    [fmt(A.musicStart)+'–'+fmt(A.musicEnd),'music span'],[A.beats.length,'beats'],
+    [A.sections.filter(s=>s.kind==='chorus').length,'chorus sections'],[A.hits.length,'bass hits']
+  ].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  // waveform + sections
+  const c=document.getElementById('waveCanvas'); const W=c.width=c.offsetWidth,H=c.height;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const SC={quiet:'#1E2A5E',verse:'#2A3F8F',build:'#8F6A2A',chorus:'#8F2A3A'};
+  A.sections.forEach(s=>{ ctx.fillStyle=SC[s.kind]; ctx.globalAlpha=.45;
+    ctx.fillRect(s.start/dur*W,0,(s.end-s.start)/dur*W,H); ctx.globalAlpha=1; });
+  // dim the trimmed silence so it's obvious nothing will be scheduled there
+  ctx.fillStyle='#05081A'; ctx.globalAlpha=.72;
+  if(A.musicStart>0.5) ctx.fillRect(0,0,A.musicStart/dur*W,H);
+  if(A.musicEnd<dur-0.5) ctx.fillRect(A.musicEnd/dur*W,0,W-A.musicEnd/dur*W,H);
+  ctx.globalAlpha=1;
+  const E=A.energy, maxE=Math.max(...E);
+  ctx.strokeStyle='#FFC94D'; ctx.beginPath();
+  for(let x=0;x<W;x++){ const i=Math.floor(x/W*E.length); const y=H-4-(E[i]/maxE)*(H-10);
+    x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.stroke();
+  ctx.fillStyle='#FF4D5E';
+  A.hits.forEach(t=>ctx.fillRect(t/dur*W-1,0,2,10));
+  document.getElementById('sectionLabels').innerHTML = A.sections.map(s=>
+    `<span class="seclabel sec-${s.kind}">${s.kind} ${fmt(s.start)}–${fmt(s.end)}</span>`).join('');
+}
+function fmt(t){ const m=Math.floor(t/60),s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); }
+</script>
+<script>
+/* ================= STEP 3: lyrics timing & face casting ================= */
+/* ---- grapheme → viseme breakdown ----
+   Maps words to the Preston Blair mouth shapes xLights' Faces effect uses,
+   so the export carries a ready-made phoneme layer (no manual "Breakdown
+   Words into Phonemes" in xLights). Viseme-level accuracy is much more
+   forgiving than true phonemes — most consonants collapse to "etc" — so an
+   ordered letter-rule engine plus a small exceptions dictionary gets very
+   close to xLights' own dictionary breakdown.
+   Codes: A=AI E=E O=O U=U F=FV L=L M=MBP W=WQ c=etc. Vowels weigh 2. */
+const VISEME = {A:'AI',E:'E',O:'O',U:'U',F:'FV',L:'L',M:'MBP',W:'WQ',c:'etc'};
+const G2V_DICT = {
+  the:'cA', of:'AF', to:'cU', you:'cU', your:'cO', "you're":'cO',
+  one:'WAc', once:'WAc', two:'cU', who:'cU', whose:'cUc', whom:'cUM', whole:'cOL',
+  do:'cU', does:'cAc', done:'cAc', come:'cAM', some:'cAM', from:'FcAM',
+  love:'LAF', above:'AMAF', dove:'cAF', glove:'cLAF',
+  none:'cAc', nothing:'cAcAc', month:'MAc', mother:'MAcE', other:'AcE',
+  another:'AcAcE', brother:'McAcE', money:'MAcE', honey:'cAcE',
+  wonder:'WAcE', wonderful:'WAcEFAL',
+  through:'cU', though:'cO', enough:'EcAF', rough:'cAF', tough:'cAF', laugh:'LAF',
+  would:'WUc', could:'cUc', should:'cUc', put:'MUc', push:'MUc', pull:'MUL', full:'FUL',
+  oh:'O', ooh:'U', ah:'A', whoa:'WO', hey:'cE', yeah:'cA', hallelujah:'cALELUcA',
+  now:'cA', how:'cA', down:'cAc', town:'cAc', crowd:'cAc',
+  have:'cAF', heart:'cAc', world:'WELc', word:'WEc', work:'WEc',
+  movie:'MUFE', beautiful:'MUcAFAL', rudolph:'cUcOLF',
+  eye:'A', eyes:'Ac', i:'A', "i'm":'AM', "i'll":'AL', "i've":'AF', "i'd":'Ac',
+};
+const G2V_RULES = [
+  [/^n't/,'c'],[/^'s/,'c'],[/^'d/,'c'],[/^'ll/,'L'],[/^'ve/,'F'],[/^'re/,'c'],[/^'m/,'M'],[/^'/,''],
+  [/^eigh/,'E'],[/^igh/,'A'],[/^ough/,'O'],[/^augh/,'O'],
+  [/^tion/,'cAc'],[/^sion/,'cAc'],[/^alk/,'Oc'],[/^all/,'OL'],
+  [/^oo/,'U'],[/^ee/,'E'],[/^ea/,'E'],[/^ei/,'E'],[/^ey/,'E'],[/^ai/,'E'],[/^ay/,'E'],
+  [/^oa/,'O'],[/^ow/,'O'],[/^oi/,'O'],[/^oy/,'O'],[/^au/,'O'],[/^aw/,'O'],
+  [/^ou/,'A'],[/^ew/,'U'],[/^ue/,'U'],[/^ui/,'U'],
+  [/^ie(?=[a-z])/,'E'],[/^ie$/,'A'],
+  [/^a(?=[^aeiou]e$)/,'E'],[/^i(?=[^aeiou]e$)/,'A'],[/^o(?=[^aeiou]e$)/,'O'],[/^u(?=[^aeiou]e$)/,'U'],
+  [/^ph/,'F'],[/^wh/,'W'],[/^wr/,'c'],[/^qu/,'W'],
+  [/^(tch|ch|sh|th|gh|ck|dg|ng)/,'c'],
+  [/^[fv]/,'F'],[/^[bpm]/,'M'],[/^w/,'W'],[/^l/,'L'],
+  [/^[cdghjknqrstxz]/,'c'],
+  [/^[ai]/,'A'],[/^o/,'O'],[/^u/,'A'],[/^e/,'E'],
+];
+function wordVisemes(raw){
+  // hyphenated / punctuated input: break down each alpha run and join
+  const parts = raw.toLowerCase().replace(/[^a-z' ]/g,' ').split(/\s+/).filter(Boolean);
+  const seq = parts.map(partVisemes).join('');
+  return seq.replace(/(.)\1+/g,'$1'); // merge repeats: same mouth, held
+}
+function partVisemes(w){
+  let seq = G2V_DICT[w];
+  if(seq===undefined){
+    // inflections resolve against the dictionary stem (loves, loved, loving)
+    const m = w.match(/^(.+?)(s|es|d|ed|ing)$/);
+    if(m){ const stem = G2V_DICT[m[1]] || G2V_DICT[m[1]+'e'];
+           if(stem) seq = stem + (m[2]==='ing'?'Ac':'c'); }
+  }
+  if(seq===undefined){
+    seq='';
+    let i=0, hasVowel=false;
+    while(i<w.length){
+      const rest=w.slice(i);
+      if(rest==='e'){ if(!hasVowel) seq+='E'; break; }              // silent final e
+      if((rest==='ed'||rest==='es') && hasVowel){ seq+='c'; break; } // walked, wishes
+      if(w[i]==='y'){ seq += i===0?'c' : (rest==='y'&&!hasVowel?'A':'E'); i++; }
+      else {
+        let matched=false;
+        for(const [re,vis] of G2V_RULES){
+          const m=rest.match(re);
+          if(m){ seq+=vis; i+=m[0].length; matched=true; break; }
+        }
+        if(!matched) i++;
+      }
+      hasVowel = hasVowel || /[AEOU]/.test(seq);
+    }
+  }
+  return seq;
+}
+function visWeight(seq){ let s=0; for(const ch of seq) s += /[AEOU]/.test(ch)?2:1; return s; }
+
+function buildLyrics(){
+  renderVocalControls();   // simpleshow-vocals.js
+  const raw = document.getElementById('lyricsBox').value.trim();
+  const faces = S.models.filter(m=>m.role==='Singing Face').map(m=>m.name);
+  if(!raw){ S.lyrics={lines:[],faces}; setOffsetDisabled(false); return; }
+  // manual lyric edits (step 5 editor) replace the automatic layout entirely
+  const doc = typeof activeLyricDoc==='function' ? activeLyricDoc(raw) : null;
+  if(doc){
+    S.lyrics = {lines: JSON.parse(JSON.stringify(doc.lines)), faces};
+    setOffsetDisabled(true);
+    renderFaceCastList();
+    return;
+  }
+  setOffsetDisabled(false);
+  const A=S.analysis, dur=S.audio.duration;
+  // singable windows: never leading/trailing silence, and (when "keep inside
+  // the sung parts" is on) never instrumental quiet sections either — lines
+  // laid proportionally over dead air is what makes sync look dubbed
+  const vStart=A.musicStart??0, vEnd=A.musicEnd??dur;
+  let windows=[];
+  if(document.getElementById('skipIntro').checked && A.sections.length){
+    A.sections.forEach(s=>{
+      if(s.kind==='quiet') return;
+      const a=Math.max(s.start,vStart), b=Math.min(s.end,vEnd);
+      if(b-a>1.5) windows.push({a,b});
+    });
+  }
+  if(!windows.length) windows=[{a:vStart,b:vEnd}];
+  const lines = raw.split(/\n+/).map(l=>l.trim()).filter(Boolean);
+  // phoneme weight drives all timing: lines across the song, words within lines
+  const pre = lines.map(text=>{
+    const words = text.split(/\s+/).map(t=>{
+      const vis = wordVisemes(t);
+      return {text:t, vis, weight:Math.max(1, visWeight(vis))};
+    });
+    return {text, words, weight:Math.max(2, words.reduce((s,w)=>s+w.weight,0)/2)};
+  });
+  const totalW = pre.reduce((s,l)=>s+l.weight,0);
+  const totalWin = windows.reduce((s,w)=>s+(w.b-w.a),0);
+  const posAt = x => { // arc-length position along the concatenated windows
+    let r=Math.max(0,x);
+    for(const w of windows){ if(r<=w.b-w.a) return {t:w.a+r, w}; r-=w.b-w.a; }
+    const lw=windows[windows.length-1]; return {t:lw.b, w:lw};
+  };
+  const beatSnap = x => { // snap to nearest beat
+    let best=x,d=1e9; for(const b of A.beats){ const dd=Math.abs(b-x); if(dd<d){d=dd;best=b;} } return best;
+  };
+  // vocals land on onsets, not on a proportional grid: pull each line start
+  // to the strongest onset nearby (closer onsets favored over louder-but-far)
+  const snapOn = document.getElementById('snapOnsets').checked;
+  const peakAt = (arr,x,rad) => { // strongest peak near x, closer ones favored
+    const i0=Math.max(0,Math.round((x-rad)*A.fps)), i1=Math.min(arr.length-1,Math.round((x+rad)*A.fps));
+    let bi=-1,bv=0;
+    for(let i=i0;i<=i1;i++){ const v=arr[i]*(1-0.6*Math.abs(i/A.fps-x)/rad); if(v>bv){bv=v;bi=i;} }
+    return bi<0 ? null : bi/A.fps;
+  };
+  const onsetSnap = (x,rad) => {
+    if(!snapOn || !A.env) return beatSnap(x);
+    const p = peakAt(A.env,x,rad);
+    return p==null ? beatSnap(x) : p;
+  };
+  // human-synced line stamps (LRCLIB / .lrc) win over any automatic layout,
+  // valid while the box's line count still matches the stored entries
+  const lrc=(S.lrcTimes && S.lrcTimes.length===pre.length) ? S.lrcTimes : null;
+  let cum=0, prevEnd=-1;
+  const built = pre.map((L,li)=>{
+    const wLen = L.weight/totalW*totalWin;
+    let start, end;
+    if(lrc){
+      start=lrc[li].t;
+      end=(li+1<lrc.length ? lrc[li+1].t-0.05 : Math.min(start+6, vEnd));
+      end=start+(end-start)*0.85; // breathing room
+    } else {
+      const p1=posAt(cum), p2=posAt(cum+wLen);
+      cum += wLen;
+      // a line never crosses an instrumental gap — it ends with its window
+      start=p1.t; end=(p2.w===p1.w ? p2.t : p1.w.b);
+      start = onsetSnap(start, Math.min(1.5, Math.max(0.4, wLen*0.4)));
+      end = start + (end-start)*0.85; // breathing room
+    }
+    if(prevEnd>=0 && start<prevEnd+0.05) start=prevEnd+0.05;
+    if(end<=start+0.5) end = start + Math.max(0.8, wLen*0.5);
+    prevEnd=end;
+    // words get slots proportional to phoneme weight; then each interior
+    // boundary is pulled to the nearest vocal-band onset so syllables land
+    // where they're sung, not on the proportional grid
+    const wSum = L.words.reduce((s,x)=>s+x.weight,0);
+    const bounds=[start];
+    let bt=start;
+    L.words.forEach(x=>{ bt+=(end-start)*x.weight/wSum; bounds.push(bt); });
+    if(snapOn && A.venv) for(let k=1;k<bounds.length-1;k++){
+      const rad=Math.min(0.35, 0.45*Math.min(bounds[k]-bounds[k-1], bounds[k+1]-bounds[k]));
+      if(rad*A.fps<2) continue; // slot too small to search
+      const p=peakAt(A.venv, bounds[k], rad);
+      if(p!=null) bounds[k]=Math.max(bounds[k-1]+0.06, p);
+    }
+    const wordObjs = L.words.map((x,k)=>{
+      const ws=bounds[k], we=ws+(bounds[k+1]-ws)*0.94;
+      // phonemes tile the word, vowels held twice as long as consonants
+      const pSum = visWeight(x.vis)||1;
+      let pt=ws;
+      const phones=[...x.vis].map(ch=>{
+        const pd=(we-ws)*(/[AEOU]/.test(ch)?2:1)/pSum;
+        const p={v:VISEME[ch], start:pt, end:pt+pd}; pt+=pd; return p;
+      });
+      return {text:x.text, start:ws, end:we, vis:x.vis, phones};
+    });
+    return {text:L.text, start, end, words:wordObjs, faces:[]};
+  });
+  // global nudge: shift every line/word/phoneme by the user's timing offset
+  const offset = (+document.getElementById('lyricsOffset').value||0)/1000;
+  if(offset) built.forEach(l=>{
+    l.start+=offset; l.end+=offset;
+    l.words.forEach(w=>{ w.start+=offset; w.end+=offset; w.phones.forEach(p=>{ p.start+=offset; p.end+=offset; }); });
+  });
+  // casting: lead/duet carries the verses, backup faces pile in on choruses
+  const inChorus = tt => A.sections.some(s=>s.kind==='chorus' && tt>=s.start && tt<s.end);
+  castVocals(built, faces, inChorus, vocalState());   // simpleshow-vocals.js
+  S.lyrics = {lines:built, faces};
+  renderFaceCastList();
+}
+function renderFaceCastList(){
+  const faces=S.lyrics.faces||[], lines=S.lyrics.lines||[];
+  document.getElementById('faceCastList').innerHTML = faces.length
+    ? lines.slice(0,40).map(l=>`<div title="${esc(l.words.map(w=>w.text+' ['+w.phones.map(p=>p.v).join('·')+']').join('  '))}">${fmt(l.start)} <span style="color:${typeof lineColorOf==='function'?lineColorOf(l):'var(--pix-red)'}">${l.faces.length===faces.length&&faces.length>1?'ALL FACES':esc(l.faces.join(', '))}</span> — ${esc(l.text)}</div>`).join('') + (lines.length>40?`<div>… ${lines.length-40} more lines</div>`:'')
+    : '<div>No models are set to the Singing Face role — go back to step 1 if that\'s wrong.</div>';
+}
+/* manual lyric edits override the offset sliders — disable them while active */
+function setOffsetDisabled(dis){
+  ['lyricsOffset','lyricsOffset2'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.disabled=dis;
+    el.title=dis?'Manual lyric edits are active for this song — "Reset to automatic timing" on step 5 re-enables this slider':'';
+  });
+}
+document.getElementById('lyricsBox').addEventListener('input', ()=>{ if(S.analysis) buildLyrics(); });
+document.getElementById('nav2').addEventListener('click', ()=>{ if(S.analysis) buildLyrics(); });
+['skipIntro','snapOnsets','lyricsOffset'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>{
+  const v=document.getElementById('lyricsOffset').value;
+  document.getElementById('lyricsOffsetLabel').textContent=v+' ms';
+  const o2=document.getElementById('lyricsOffset2');
+  if(o2){ o2.value=v; document.getElementById('lyricsOffset2Label').textContent=v+' ms'; }
+  if(S.analysis) buildLyrics();
+  if(typeof saveSession==='function') saveSession();
+}));
+const _origFinish = finishStep;
+finishStep = function(i){ if(i===1) buildLyrics(); if(i===2) buildLyrics(); _origFinish(i); };
+
+/* ================= STEP 4: show generation ================= */
+const PALETTES = {
+  // Christmas
+  traditional:{ A:['#FF0000','#00FF00'], B:['#FFBF7F','#FF0000'], C:['#FFFFFF','#FF0000','#00FF00'], accent:'#FFFFFF' },
+  icy:{ A:['#0040FF','#00FFFF'], B:['#FFFFFF','#4080FF'], C:['#00FFFF','#FFFFFF','#0040FF'], accent:'#FFFFFF' },
+  candy:{ A:['#FF0000','#FFFFFF'], B:['#FF66A3','#FFFFFF'], C:['#FF0000','#FF66A3','#FFFFFF'], accent:'#FFFFFF' },
+  party:{ A:['#FF0000','#FF8000','#FFFF00'], B:['#00FF00','#00FFFF','#0000FF'], C:['#FF00FF','#00FFFF','#FFFF00'], accent:'#FFFFFF' },
+  goldwhite:{ A:['#FFC94D','#FFFFFF'], B:['#FFF3B0','#FFC94D'], C:['#FFFFFF','#FFC94D','#FFF3B0'], accent:'#FFFFFF' },
+  // US holidays
+  halloween:{ A:['#FF6A00','#8A2BE2'], B:['#39FF14','#FF6A00'], C:['#FF6A00','#8A2BE2','#39FF14'], accent:'#FF8C00' },
+  thanksgiving:{ A:['#FF8C00','#B5651D'], B:['#FFD27F','#8B4513'], C:['#FF8C00','#FFD27F','#A0522D'], accent:'#FFE4B5' },
+  july4:{ A:['#FF0000','#FFFFFF'], B:['#0033CC','#FFFFFF'], C:['#FF0000','#FFFFFF','#0033CC'], accent:'#FFFFFF' },
+  valentine:{ A:['#FF1A5E','#FF8FB8'], B:['#FFFFFF','#FF1A5E'], C:['#FF1A5E','#FF8FB8','#FFFFFF'], accent:'#FFC0CB' },
+  stpatrick:{ A:['#00A651','#7CFC00'], B:['#FFD700','#00A651'], C:['#00A651','#7CFC00','#FFD700'], accent:'#FFD700' },
+  easter:{ A:['#FFB7E4','#A8E6CF'], B:['#FFF3B0','#B7C9FF'], C:['#FFB7E4','#A8E6CF','#FFF3B0','#B7C9FF'], accent:'#FFFFFF' },
+  newyear:{ A:['#FFD700','#FFFFFF'], B:['#C0C0C0','#FFD700'], C:['#FFD700','#C0C0C0','#FFFFFF'], accent:'#FFFFFF' },
+  // Around the world
+  diwali:{ A:['#FFB300','#FF5722'], B:['#E91E63','#FFB300'], C:['#FFB300','#FF5722','#E91E63','#FFD700'], accent:'#FFE082' },
+  holi:{ A:['#FF1E8E','#00C3FF'], B:['#7CFF00','#FF9100'], C:['#FF1E8E','#00C3FF','#7CFF00','#FF9100','#B833FF'], accent:'#FFFFFF' },
+  hanukkah:{ A:['#0055FF','#FFFFFF'], B:['#87CEFA','#0055FF'], C:['#0055FF','#FFFFFF','#87CEFA'], accent:'#FFFFFF' },
+  eid:{ A:['#00A86B','#FFD700'], B:['#FFFFFF','#00A86B'], C:['#00A86B','#FFD700','#FFFFFF'], accent:'#FFF3B0' },
+  lunar:{ A:['#FF0000','#FFD700'], B:['#FFD700','#FF3B3B'], C:['#FF0000','#FFD700','#FF7A00'], accent:'#FFD700' },
+  bonfire:{ A:['#FF6A00','#FFD700'], B:['#4B0082','#FF6A00'], C:['#FF6A00','#FFD700','#8A2BE2','#00C3FF'], accent:'#FFFFFF' },
+  mardigras:{ A:['#7A0FC8','#00A651'], B:['#FFD700','#7A0FC8'], C:['#7A0FC8','#00A651','#FFD700'], accent:'#FFD700' },
+  cinco:{ A:['#00A651','#FF0000'], B:['#FFFFFF','#00A651'], C:['#00A651','#FFFFFF','#FF0000'], accent:'#FFFFFF' },
+  australia:{ A:['#00843D','#FFCD00'], B:['#FFCD00','#00843D'], C:['#00843D','#FFCD00','#FFFFFF'], accent:'#FFCD00' },
+  // Seasons
+  spring:{ A:['#8BE04A','#FFB7E4'], B:['#FFF3B0','#8BE04A'], C:['#8BE04A','#FFB7E4','#FFF3B0','#B7C9FF'], accent:'#FFFFFF' },
+  summer:{ A:['#00C3FF','#FF9100'], B:['#FFE24D','#00C3FF'], C:['#00C3FF','#FF9100','#FFE24D','#FF4DA6'], accent:'#FFFFFF' },
+  autumn:{ A:['#FF8C00','#C0392B'], B:['#FFD27F','#8B4513'], C:['#FF8C00','#C0392B','#FFD27F'], accent:'#FFE4B5' },
+  winter:{ A:['#B3E5FC','#FFFFFF'], B:['#4080FF','#B3E5FC'], C:['#B3E5FC','#FFFFFF','#4080FF'], accent:'#FFFFFF' },
+};
+/* Mood shapes the choreography, palette shapes the colors: energy biases the
+   per-section budget, rest sets how often the hero sits out, sparkle scales
+   the rich-mode glitter (0 disables it). */
+const MOODS = {
+  gentle:  { energy:-1,  rest:1.5, sparkle:0   },
+  classic: { energy:0,   rest:1,   sparkle:1   },
+  festive: { energy:0.5, rest:0.8, sparkle:1.3 },
+  party:   { energy:1,   rest:0.5, sparkle:1.6 },
+};
+document.getElementById('intensity').addEventListener('input', e=>{
+  document.getElementById('intensityLabel').textContent = ['','Gentle','Balanced','Full send'][e.target.value];
+});
+
+/* Effect recipes per role per section kind. Each entry: [effectName, settingsString, paletteKey, layer] */
+function recipesFor(role, kind, opts){
+  const R = {
+    'Mega Tree':{
+      quiet:[['Twinkle','E_SLIDER_Twinkle_Count=12','B']],
+      verse:[['Spirals','E_SLIDER_Spirals_Count=3,E_SLIDER_Spirals_Movement=10','A']],
+      build:[['Spirals','E_SLIDER_Spirals_Count=5,E_SLIDER_Spirals_Movement=25','C']],
+      chorus:[['Butterfly','E_SLIDER_Butterfly_Chunks=4,E_SLIDER_Butterfly_Speed=20','C']],
+    },
+    'Mini Tree':{
+      quiet:[['Twinkle','E_SLIDER_Twinkle_Count=8','B']],
+      verse:[['ColorWash','','A']],
+      build:[['Bars','E_SLIDER_Bars_BarCount=3','C']],
+      chorus:[['Bars','E_SLIDER_Bars_BarCount=5,E_SLIDER_Bars_Cycles=3','C']],
+    },
+    'Arch':{
+      quiet:[['ColorWash','','B']],
+      verse:[['SingleStrand','E_CHOICE_SingleStrand_Colors=Palette,E_SLIDER_Number_Chases=1','A']],
+      build:[['SingleStrand','E_CHOICE_SingleStrand_Colors=Palette,E_SLIDER_Number_Chases=2','C']],
+      chorus:[['Bars','E_SLIDER_Bars_BarCount=4,E_CHECKBOX_Bars_Highlight=1','C']],
+    },
+    'Roof/Outline':{
+      quiet:[['Twinkle','E_SLIDER_Twinkle_Count=6','B']],
+      verse:[['ColorWash','E_CHECKBOX_ColorWash_Shimmer=0','A']],
+      build:[['Marquee','E_SLIDER_Marquee_Band_Size=3','C']],
+      chorus:[['Bars','E_SLIDER_Bars_BarCount=6,E_SLIDER_Bars_Cycles=2','C']],
+    },
+    'Icicles':{
+      quiet:[['Twinkle','E_SLIDER_Twinkle_Count=10','B']],
+      verse:[['Meteors','E_CHOICE_Meteors_Effect=Down,E_SLIDER_Meteors_Count=8','B']],
+      build:[['Meteors','E_CHOICE_Meteors_Effect=Down,E_SLIDER_Meteors_Count=15,E_SLIDER_Meteors_Speed=15','C']],
+      chorus:[['Snowflakes','E_SLIDER_Snowflakes_Count=12','C']],
+    },
+    'Star/Topper':{
+      quiet:[['On','E_TEXTCTRL_Eff_On_End=60','accent']],
+      verse:[['On','','accent']],
+      build:[['Strobe','E_SLIDER_Number_Strobes=6','accent']],
+      chorus:[['Pinwheel','E_SLIDER_Pinwheel_Arms=5,E_SLIDER_Pinwheel_Speed=15','C']],
+    },
+    'Matrix/Screen':{
+      quiet:[['ColorWash','','B']],
+      verse:[['Fire','E_SLIDER_Fire_Height=60','A']],
+      build:[['Garlands','','C']],
+      chorus: opts.useVU ? [['VU Meter','E_CHOICE_VUMeter_Type=Bars,E_SLIDER_VUMeter_Bars=16','C']]
+                         : [['Butterfly','','C']],
+    },
+    'Spinner/Wreath':{ // always rotating — that's what the prop is FOR
+      quiet:[['Pinwheel','E_SLIDER_Pinwheel_Arms=3,E_SLIDER_Pinwheel_Speed=4','B']],
+      verse:[['Pinwheel','E_SLIDER_Pinwheel_Arms=3,E_SLIDER_Pinwheel_Speed=8','A']],
+      build:[['Pinwheel','E_SLIDER_Pinwheel_Arms=5,E_SLIDER_Pinwheel_Speed=12','C']],
+      chorus:[['Pinwheel','E_SLIDER_Pinwheel_Arms=6,E_SLIDER_Pinwheel_Speed=20','C']],
+    },
+    'Candy Cane':{
+      quiet:[['ColorWash','','B']],
+      verse:[['SingleStrand','E_CHOICE_SingleStrand_Colors=Palette','A']],
+      build:[['Bars','E_SLIDER_Bars_BarCount=3','C']],
+      chorus:[['Bars','E_SLIDER_Bars_BarCount=4','C']],
+    },
+    'Flood':{ // wall washers: long slow fades in and out, never beat props
+      quiet:[['On','E_TEXTCTRL_Eff_On_Start=10,E_TEXTCTRL_Eff_On_End=40','B']],
+      verse:[['On','E_TEXTCTRL_Eff_On_Start=0,E_TEXTCTRL_Eff_On_End=75','A']],
+      build:[['On','E_TEXTCTRL_Eff_On_Start=0,E_TEXTCTRL_Eff_On_End=100','C']],
+      chorus:[['On','E_TEXTCTRL_Eff_On_Start=100,E_TEXTCTRL_Eff_On_End=60','C']],
+    },
+    'Forest':{ // ground-grid vertical spikes — up/down undulation, wave-like, used sparingly
+      quiet:[['Twinkle','E_SLIDER_Twinkle_Count=10','B']],
+      verse:[['Wave','E_CHOICE_Wave_Type=Sine,E_SLIDER_Wave_Height=40,E_SLIDER_Wave_Speed=10','A']],
+      build:[['Wave','E_CHOICE_Wave_Type=Sine,E_SLIDER_Wave_Height=60,E_SLIDER_Wave_Speed=18','C']],
+      chorus:[['Wave','E_CHOICE_Wave_Type=Sine,E_CHECKBOX_Mirror_Wave=1,E_SLIDER_Wave_Height=75,E_SLIDER_Wave_Speed=24','C']],
+    },
+    'Special/Accent':{ // yard art held back for the ramps — dark until the music lifts
+      quiet:[], verse:[],
+      build:[['On','E_TEXTCTRL_Eff_On_Start=20,E_TEXTCTRL_Eff_On_End=100','C']],
+      chorus:[['ColorWash','E_CHECKBOX_ColorWash_Shimmer=1','C']],
+    },
+    'Generic Prop':{
+      quiet:[['Twinkle','','B']],
+      verse:[['ColorWash','','A']],
+      build:[['Bars','','C']],
+      chorus:[['Bars','E_SLIDER_Bars_Cycles=2','C']],
+    },
+    'Singing Face':{ // background when not singing is handled separately
+      quiet:[], verse:[], build:[], chorus:[],
+    },
+  };
+  return (R[role]||R['Generic Prop'])[kind]||[];
+}
+
+function rerollSeed(){
+  document.getElementById('seedBox').value=newSeed();
+  generateShow();
+}
+function generateShow(){
+  if(!S.analysis){ alert('Analyze a song first (step 2).'); return; }
+  buildLyrics();
+  const A=S.analysis;
+  const style=document.getElementById('styleSel').value;
+  const intensity=+document.getElementById('intensity').value;
+  const g=id=>document.getElementById(id);
+  const opts={ useVU:g('useVU').checked,
+               useShock:g('useShockwaves').checked,
+               layerDepth:g('layerDepth')?g('layerDepth').value:'layered',
+               useUnison:g('useUnison')?g('useUnison').checked:true,
+               megaSpotlight:g('megaSpotlight')?g('megaSpotlight').checked:true,
+               mood:g('moodSel')?g('moodSel').value:'classic',
+               moves:{ sweep:g('mvSweep')?g('mvSweep').checked:true,
+                       chase:g('mvChase')?g('mvChase').checked:true,
+                       pulse:g('mvPulse')?g('mvPulse').checked:true,
+                       call: g('mvCall') ?g('mvCall').checked :true,
+                       focus:g('mvFocus')?g('mvFocus').checked:true } };
+  const P=PALETTES[style]||PALETTES.traditional;
+  const ms=t=>Math.max(0,Math.round(t*1000/50)*50); // snap to 50ms grid
+  // seeded: the shown seed always reproduces this exact show
+  let seed=parseInt(document.getElementById('seedBox').value,10);
+  if(!Number.isFinite(seed)) seed=newSeed();
+  document.getElementById('seedBox').value=seed;
+  const rng=makeRng(seed);
+  // screens configured for shaders/karaoke leave the generic choreography
+  S.models.forEach(m=>{ m._screenTaken = m.role==='Matrix/Screen'
+    && typeof screenModeOf==='function' && screenModeOf(m).mode!=='choreo'; });
+  // choreography-first: families (groups when available) → moves → plan
+  const fam=buildFamilies(S.models, S.groups||[]);
+  const phrases=subdividePhrases(A, intensity);
+  const placements=choreograph(A, fam, {A, P, opts, intensity, phrases}, rng);
+  const plan=compileChoreo(placements, fam, S.models, ms);
+  // faces: background wash + Faces effect on lyric lines, each bound to its
+  // singer's voice timing track (the pro pattern) or the merged Lyrics track
+  const faces=S.models.filter(m=>m.role==='Singing Face');
+  const faceNames=faces.map(m=>m.name);
+  faces.forEach(f=>{
+    A.sections.forEach(sec=>{
+      plan[f.name].push([0,'ColorWash','E_TEXTCTRL_Eff_On_End=25',palForModel(f,['#101040']),ms(sec.start),ms(sec.end)]);
+    });
+  });
+  const vNames=voiceTrackPlan();   // simpleshow-vocals.js
+  if(S.lyrics) S.lyrics.lines.forEach(l=>{
+    l.faces.forEach(fn=>{
+      const track=voiceTrackFor(l, fn, vNames, faceNames.length);
+      // singers are color-coded: the line's edited color, else the face's own
+      const col=l.color || (typeof faceColorOf==='function'?faceColorOf(fn):P.accent);
+      const fm=S.models.find(mm=>mm.name===fn);
+      // settings string mirrors the pro sequences byte-for-byte: the model's
+      // own face definition (node-range faces render nothing without it) and
+      // 0.5s fades; three checked palette colors drive the part colors that
+      // xLights assigns when the face definition leaves them empty
+      const fdef=(fm&&fm.faceDef&&fm.faceDef.name)?',E_CHOICE_Faces_FaceDefinition='+fm.faceDef.name:'';
+      plan[fn].push([1,'Faces','E_CHECKBOX_Faces_Outline=1,E_CHOICE_Faces_Eyes=Auto'+fdef+',E_CHOICE_Faces_TimingTrack='+track+',T_TEXTCTRL_Fadein=.5,T_TEXTCTRL_Fadeout=.5',palForModel(fm,[col,'#FFFFFF',P.accent]),ms(l.start),ms(l.end)]);
+    });
+  });
+  // screens: shader graphics and/or karaoke words replace generic effects
+  if(typeof screenPlacements==='function'){
+    const sp=screenPlacements(A,P,ms);
+    Object.entries(sp).forEach(([n,rows])=>{ (plan[n]=plan[n]||[]).push(...rows); });
+  }
+  // bass hit accents: shockwave on mega tree + strobe on outline
+  if(opts.useShock){
+    const mega=S.models.find(m=>m.role==='Mega Tree');
+    const outl=S.models.filter(m=>m.role==='Roof/Outline');
+    A.hits.forEach(t=>{
+      if(mega) plan[mega.name].push([ACCENT_LAYER,'Shockwave','E_SLIDER_Shockwave_Start_Radius=1,E_SLIDER_Shockwave_End_Radius=100,E_SLIDER_Shockwave_Start_Width=10,E_SLIDER_Shockwave_End_Width=0',palForModel(mega,[P.accent]),ms(t),ms(t+0.6)]);
+      outl.forEach(o=>plan[o.name].push([ACCENT_LAYER,'Strobe','E_SLIDER_Number_Strobes=10',palForModel(o,[P.accent]),ms(t),ms(t+0.4)]));
+    });
+  }
+  // whole-display moment: once per show the display becomes one canvas —
+  // everything else in the window is cleared (faces keep singing, screens
+  // keep their graphics) and one Per-Preview effect rides the All group
+  S._canvasMoment=null;
+  if(typeof canvasMoment==='function' && fam.allGroup){
+    const cm=canvasMoment(A, P, (seed%9973)/9973, fam.allGroup.name,
+      {canvasMoment:g('useCanvasMoment')?g('useCanvasMoment').checked:true});
+    if(cm){
+      const s0=ms(cm.start), e0=ms(cm.end);
+      const keep=new Set(S.models.filter(m=>m.role==='Singing Face'||m._screenTaken).map(m=>m.name));
+      Object.keys(plan).forEach(n=>{
+        if(keep.has(n)) return;
+        plan[n]=plan[n].flatMap(r=> (r[5]<=s0||r[4]>=e0) ? [r]
+          : [ ...(r[4]<s0?[[r[0],r[1],r[2],r[3],r[4],s0]]:[]),
+              ...(r[5]>e0?[[r[0],r[1],r[2],r[3],e0,r[5]]]:[]) ]);
+      });
+      (plan[cm.el]=plan[cm.el]||[]).push([1,cm.effect,cm.settings,cm.pal,s0,e0]);
+      S._canvasMoment=cm;
+    }
+  }
+  // coverage: which plan elements can light each model (for the preview)
+  const coverage={};
+  S.models.forEach(m=>{ if(m.role!=='Skip') coverage[m.name]=[{el:m.name,ord:0,n:1}]; });
+  fam.families.forEach(f=>{
+    if(!f.element) return;
+    f.members.forEach((m,i)=>coverage[m.name] && coverage[m.name].push({el:f.element,ord:i,n:f.members.length}));
+  });
+  if(fam.allGroup) fam.allGroup.members.forEach((m,i)=>coverage[m.name] && coverage[m.name].push({el:fam.allGroup.name,ord:i,n:fam.allGroup.members.length}));
+  S.sequence={plan, style, phrases, seed, families:fam, coverage};
+  saveSession();   // simpleshow-choreo.js
+  renderGenResults();
+}
+
+function renderGenResults(){
+  document.getElementById('genResults').classList.remove('hidden');
+  const plan=S.sequence.plan;
+  let fx=0; Object.values(plan).forEach(a=>fx+=a.length);
+  const modelSet=new Set(S.models.map(m=>m.name));
+  const groupsSeq=Object.keys(plan).filter(k=>!modelSet.has(k)&&plan[k].length).length;
+  // peak simultaneous elements — the energy-budget number, sampled every 500ms
+  let peak=0;
+  for(let t=0;t<S.audio.duration*1000;t+=500){
+    let c=0;
+    for(const effs of Object.values(plan)) if(effs.some(e=>t>=e[4]&&t<e[5])) c++;
+    peak=Math.max(peak,c);
+  }
+  document.getElementById('genStats').innerHTML=[
+    [Object.keys(plan).length,'elements sequenced'],[groupsSeq,'groups carrying effects'],
+    [fx,'effects placed'],[peak,'peak simultaneous'],
+    [S.sequence.seed,'show seed'],
+    [S.sequence.phrases.length,'musical phrases'],[(S.lyrics?.lines.length||0),'lyric lines timed'],
+    [S.lyrics?S.lyrics.lines.reduce((s,l)=>s+l.words.reduce((x,w)=>x+w.phones.length,0),0):0,'phonemes placed']
+  ].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  document.getElementById('planView').innerHTML = Object.entries(plan).map(([name,effs])=>{
+    const kinds=[...new Set(effs.map(e=>e[1]))].join(', ');
+    return `<div><span style="color:var(--bulb-gold)">${esc(name)}</span> — ${effs.length} effects (${esc(kinds)})</div>`;
+  }).join('');
+}
+</script>
+<script>
+/* ================= xsq export ================= */
+function xesc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function buildXSQ(){
+  const plan=S.sequence.plan, A=S.analysis;
+  const effectDB=[], effIdx=new Map();
+  const palDB=[], palIdx=new Map();
+  const effRef=(name,settings)=>{
+    const key=name+'|'+settings;
+    if(!effIdx.has(key)){ effIdx.set(key,effectDB.length); effectDB.push(settings); }
+    return effIdx.get(key);
+  };
+  const palRef=(colors)=>{
+    const parts=[];
+    for(let i=0;i<8;i++){
+      const c=colors[i%colors.length]||'#FFFFFF';
+      parts.push(`C_BUTTON_Palette${i+1}=${c}`);
+      parts.push(`C_CHECKBOX_Palette${i+1}=${i<colors.length?1:0}`);
+    }
+    const str=parts.join(',');
+    if(!palIdx.has(str)){ palIdx.set(str,palDB.length); palDB.push(str); }
+    return palIdx.get(str);
+  };
+  const msStr=t=>String(Math.round(t));
+  // timing tracks
+  const beatsT = A.beats.map(b=>Math.round(b*1000/50)*50);
+  const barsT = A.downbeats.map(b=>Math.round(b*1000/50)*50);
+  const timingTracks=[
+    {name:'Beats', layers:[beatsT.map((t,i)=>({label:'',start:t,end:beatsT[i+1]??t+250}))]},
+    {name:'Bars', layers:[barsT.map((t,i)=>({label:'',start:t,end:barsT[i+1]??t+1000}))]},
+  ];
+  if(S.lyrics && S.lyrics.lines.length){
+    // three layers (phrases / words / phonemes) — the exact structure
+    // xLights' own "Breakdown Words into Phonemes" produces, so Faces
+    // effects bound to these tracks lip-sync with no manual step
+    const linesToLayers=lines=>{
+      const r=t=>Math.round(t*1000);
+      const phraseL=[], wordL=[], phoneL=[];
+      lines.forEach(l=>{
+        phraseL.push({label:l.text, start:r(l.start), end:r(l.end)});
+        l.words.forEach(w=>{
+          wordL.push({label:w.text.replace(/[^\w' -]/g,''), start:r(w.start), end:r(w.end)});
+          w.phones.forEach(p=>phoneL.push({label:p.v, start:r(p.start), end:r(p.end)}));
+        });
+      });
+      return [phraseL, wordL, phoneL];
+    };
+    // per-voice tracks (the pro pattern: one per lead), then the merged
+    // Lyrics track that carries every line — all-faces choruses bind there
+    const allFaces=(S.lyrics.faces||[]).length;
+    const vNames=voiceTrackPlan();   // simpleshow-vocals.js
+    vNames.forEach((track,face)=>{
+      const subset=S.lyrics.lines.filter(l=>l.faces.includes(face) && !(allFaces>1 && l.faces.length>=allFaces));
+      if(subset.length) timingTracks.push({name:track, layers:linesToLayers(subset)});
+    });
+    timingTracks.push({name:'Lyrics', layers:linesToLayers(S.lyrics.lines)});
+  }
+  const modelNames=Object.keys(plan);
+  // build the ElementEffects body FIRST so effRef/palRef populate the databases
+  const body=[];
+  body.push(' <ElementEffects>');
+  timingTracks.forEach(t=>{
+    body.push(`  <Element type="timing" name="${xesc(t.name)}">`);
+    t.layers.forEach(layer=>{
+      body.push('   <EffectLayer>');
+      layer.forEach(e=>{ if(e.end>e.start) body.push(`    <Effect label="${xesc(e.label)}" protected="0" startTime="${msStr(e.start)}" endTime="${msStr(e.end)}"/>`); });
+      body.push('   </EffectLayer>');
+    });
+    body.push('  </Element>');
+  });
+  modelNames.forEach(n=>{
+    const effs=plan[n];
+    const layers=Math.max(1, ...effs.map(e=>e[0]+1));
+    body.push(`  <Element type="model" name="${xesc(n)}">`);
+    for(let L=0;L<layers;L++){
+      body.push('   <EffectLayer>');
+      effs.filter(e=>e[0]===L).sort((a,b)=>a[4]-b[4]).forEach(e=>{
+        const [,name,settings,pal,s,en]=e;
+        if(en<=s) return;
+        body.push(`    <Effect ref="${effRef(name,settings)}" name="${xesc(name)}" palette="${palRef(pal)}" protected="0" startTime="${msStr(s)}" endTime="${msStr(en)}"/>`);
+      });
+      body.push('   </EffectLayer>');
+    }
+    body.push('  </Element>');
+  });
+  body.push(' </ElementEffects>');
+  const xml=[];
+  xml.push('<?xml version="1.0" encoding="UTF-8"?>');
+  xml.push('<xsequence BaseChannel="0" ChanCtrlBasic="0" ChanCtrlColor="0" FixedPointTiming="1" ModelBlending="true">');
+  xml.push(' <head>');
+  xml.push('  <author>SimpleShow</author>');
+  xml.push('  <author-email/><author-website/><song/><artist/><album/><MusicURL/><comment>Generated by SimpleShow — review and season to taste in xLights</comment>');
+  xml.push('  <sequenceTiming>50 ms</sequenceTiming>');
+  xml.push('  <sequenceType>Media</sequenceType>');
+  xml.push(`  <mediaFile>${xesc(S.audio.name)}</mediaFile>`);
+  xml.push(`  <sequenceDuration>${S.audio.duration.toFixed(3)}</sequenceDuration>`);
+  xml.push('  <imageDir/>');
+  xml.push(' </head>');
+  xml.push(' <nextid>1</nextid>');
+  xml.push(' <databases>');
+  xml.push('  <colorpalettes>');
+  palDB.forEach((p,i)=>xml.push(`   <colorpalette ref="${i}">${xesc(p)}</colorpalette>`));
+  xml.push('  </colorpalettes>');
+  xml.push('  <effectdb>');
+  effectDB.forEach((e,i)=>xml.push(`   <Effect ref="${i}">${xesc(e)}</Effect>`));
+  xml.push('  </effectdb>');
+  xml.push(' </databases>');
+  xml.push(' <DisplayElements>');
+  timingTracks.forEach(t=>xml.push(`  <Element collapsed="0" type="timing" name="${xesc(t.name)}" visible="1" active="1"/>`));
+  modelNames.forEach(n=>xml.push(`  <Element collapsed="0" type="model" name="${xesc(n)}" visible="1"/>`));
+  xml.push(' </DisplayElements>');
+  xml.push(...body);
+  xml.push(' <lastView>1</lastView>');
+  xml.push(' <TimingTags/>');
+  xml.push('</xsequence>');
+  return xml.join('\n');
+}
+
+function download(name, text){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));
+  a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+function downloadXSQ(){
+  if(!S.sequence){ alert('Generate the show first (step 4).'); return; }
+  const base=(S.audio.name.replace(/\.[^.]+$/,'')||'simpleshow');
+  download(base+'_simpleshow.xsq', buildXSQ());
+}
+function downloadReadme(){
+  const screens=S.models.filter(m=>m.role==='Matrix/Screen').map(m=>m.name);
+  const txt=`SIMPLESHOW — SETUP GUIDE
+======================
+
+1. IMPORT
+   - Copy the .xsq into your xLights show folder (next to xlights_rgbeffects.xml).
+   - Open it in xLights. When asked for the media file, point it at: ${S.audio?S.audio.name:'your song'}.
+   - Model names in the sequence must match your layout — they were read
+     straight from your xlights_rgbeffects.xml, so they should line up.
+
+2. SINGING FACES (lip sync — already done)
+   - Timing tracks come per voice, the way pros build them: one
+     "Voice - <name>" track per lead singer plus a merged "Lyrics" track
+     (all lines; chorus lines where everyone sings bind here). Each track
+     has three layers: lines, words, and phonemes (Preston Blair mouth
+     shapes: AI, E, O, U, FV, L, MBP, WQ, etc). Every Faces effect is bound
+     to its singer's track, so the faces sing as soon as the sequence
+     opens — no "Breakdown Words into Phonemes" step needed.
+   - If your face models use a custom face definition, set it in the Faces
+     effect panel (Face Definition dropdown) once, then copy/paste to the
+     other effects.
+   - Line timing: if you used "Find synced lyrics online" (lrclib.net) or a
+     timestamped .lrc, every line starts where a human synced it; otherwise
+     lines are placed automatically on the music. Word timing follows the
+     music either way: slots are weighted by phoneme count, then each word
+     boundary is pulled to the nearest vocal-band onset in the song. If a
+     word still feels off, drag its mark on the words layer and nudge the
+     phonemes under it.
+     Prefer xLights' dictionary-exact breakdown? Run it on the
+     words layer as before — it simply replaces the phoneme layer.
+
+3. MATRICES / VIDEO SURFACES${screens.length?` (detected: ${screens.join(', ')})`:''}
+   - SHADERS: if you set a screen to "Shader graphics" (step 4), this
+     sequence carries Shader effects pointing at
+     Shaders/SimpleShow/<name>.fs. Download the shader pack from step 4
+     and unzip it into your show folder so that path exists — if xLights
+     asks for a missing file, point it there once. Every shader exposes
+     sliders (speed, hues) in the Shader effect panel to fine-tune.
+   - KARAOKE: screens set to karaoke carry Text effects timed to the
+     synced lyrics — scrolling, highlighted words, bouncing ball — built
+     on xLights' built-in bitmap fonts. If a font looks off for your
+     matrix size, change E_CHOICE_Text_Font on those effects; the word
+     positions were computed for the exported font's cell width.
+   - Prefer video instead? Set the screen to "Choreography effects" and
+     drop the Video effect on it with a licensed .mp4 (vendor matrix
+     packs, or royalty-free loops — check public display rights).
+   - WHOLE-DISPLAY MOMENT: once per show (if enabled in step 4) the whole
+     display carries one effect on the all-display group with
+     Buffer Style = Per Preview — xLights renders it across the physical
+     layout of every prop at once. Faces keep singing through it.
+
+4. MAKE IT YOURS (the tricks that sell a show)
+   - The show is choreographed top-down: your model groups carry most
+     effects (sweeps, chases, call-and-response between prop families),
+     only a few families are lit at once, and the quiet moments are
+     deliberate — that negative space is what makes the hits land.
+   - The "show seed" on step 4 reproduces this exact show; roll a new seed
+     for a genuinely different one on the same song.
+   - Try Value Curves on brightness for builds (ramp 0->100 into the chorus).
+   - Copy a chorus block you like and paste it over other choruses for
+     consistency — audiences love a recognizable "chorus look".
+   - Render and watch in the xLights preview BEFORE pushing to the controller.
+
+Generated ${new Date().toLocaleDateString()} — SimpleShow
+`;
+  download('SimpleShow_Setup_Guide.txt', txt);
+}
+
+/* ================= STEP 5: preview playback ================= */
+function sizePreview(){
+  const p=document.getElementById('player');
+  drawPreviewFrame(p&&!isNaN(p.currentTime)?p.currentTime:0);
+  wireLyricEditor();       // simpleshow-lyric-editor.js
+  renderLyricEditor();
+  renderVideoGuide();
+}
+let rafId=null;
+function togglePlay(){
+  const p=document.getElementById('player');
+  if(!S.audioURL){ alert('Load a song first.'); return; }
+  if(p.paused){ p.play(); S.playing=true; document.getElementById('playBtn').textContent='⏸ Pause'; loop(); }
+  else { p.pause(); S.playing=false; document.getElementById('playBtn').textContent='▶ Play'; cancelAnimationFrame(rafId); }
+}
+function updateClock(t){ document.getElementById('playClock').textContent=fmt(t)+' / '+fmt(S.audio.duration); }
+function loop(){
+  const p=document.getElementById('player');
+  drawPreviewFrame(p.currentTime);
+  updateClock(p.currentTime);
+  drawLyricEditCanvas();   // keep the editor's playhead moving
+  if(S.playing && !p.paused) rafId=requestAnimationFrame(loop);
+  if(p.ended){ S.playing=false; document.getElementById('playBtn').textContent='▶ Play'; }
+}
+/* deterministic per-model noise for twinkle/meteor flicker */
+function hashF(s,k){
+  let x=(k|0)*2654435761 ^ s.length;
+  for(let i=0;i<s.length;i++) x=(Math.imul(x,31)+s.charCodeAt(i))|0;
+  x^=x>>>15; return ((x>>>9)%1024)/1024;
+}
+/* what color is this model right now, according to the ACTUAL effect plan.
+   Group plan entries resolve onto members via S.sequence.coverage; a direct
+   model effect beats a group effect, any accent layer (≥2) flashes white.
+   `ord/n` (member position within its group) phases chases so a SingleStrand
+   on the "Arches" group visibly travels across the arch dots. */
+function planColorAt(m, tMs, t, pulse){
+  if(!S.sequence) return null;
+  const cov=(S.sequence.coverage&&S.sequence.coverage[m.name])||[{el:m.name,ord:0,n:1}];
+  let base=null, accent=null, baseOwn=false, ord=0, nOrd=1;
+  for(const c of cov){
+    const effs=S.sequence.plan[c.el]; if(!effs) continue;
+    const own=c.el===m.name;
+    for(const e of effs){
+      if(tMs<e[4]||tMs>=e[5]) continue;
+      if(e[1]==='Faces') continue;                    // faces handled separately
+      if(e[0]>=ACCENT_LAYER){ accent=e; continue; }
+      if(!base || (own&&!baseOwn) || (own===baseOwn && e[0]>base[0])){
+        base=e; baseOwn=own; ord=c.ord; nOrd=c.n;
+      }
+    }
+  }
+  if(accent) return {col:'#FFFFFF'};
+  if(!base) return {col:null};
+  // per-node animation data for the renderer (chases travel, twinkles flicker)
+  if(S._fx) S._fx[m.name]={ eff:base[1], sparkle:/SparkleFrequency=[1-9]/.test(base[2]),
+    prog:(tMs-base[4])/Math.max(1,base[5]-base[4]) };
+  const pal=(base[3]&&base[3].length)?base[3]:['#FFFFFF'];
+  const pick=i=>pal[((Math.floor(i)%pal.length)+pal.length)%pal.length];
+  const beat=t*S.analysis.bpm/60;
+  const phase=ord*(pal.length/Math.max(1,nOrd));
+  let col, b=0.75;
+  switch(base[1]){
+    case 'Twinkle':    col=pick(hashF(m.name,Math.floor(t*3))*pal.length); b=0.3+0.7*hashF(m.name,Math.floor(t*8)); break;
+    case 'Meteors': case 'Snowflakes':
+                       col=pick(hashF(m.name,Math.floor(t*5))*pal.length); b=0.45+0.55*hashF(m.name+'~',Math.floor(t*10)); break;
+    case 'Fire':       col=pick(0); b=0.5+0.5*Math.abs(Math.sin(t*7+hashF(m.name,0)*6)); break;
+    case 'Bars': case 'Marquee': case 'SingleStrand': case 'Garlands':
+                       col=pick(beat*2+phase); b=0.85; break;
+    case 'Spirals': case 'Butterfly': case 'Pinwheel': case 'VU Meter': case 'Tendril':
+                       col=pick(beat+phase); b=0.6+0.4*pulse; break;
+    case 'Wave':       col=pick(beat/2+phase); b=0.8; break;
+    case 'Curtain':    col=pick(phase); b=0.9; break;
+    case 'Shockwave':  col=pick(0); b=1; break;
+    case 'On': {       col=pick(beat/4); b=0.85;
+                       // Eff_On_Start/End = a brightness ramp across the span —
+                       // this is how wall-washer swells and accent ramps fade
+                       const rS=/Eff_On_Start=(\d+)/.exec(base[2]), rE=/Eff_On_End=(\d+)/.exec(base[2]);
+                       if(rS||rE){
+                         const s0=rS?+rS[1]:100, e1=rE?+rE[1]:100;
+                         const pr=Math.min(1,(tMs-base[4])/Math.max(1,base[5]-base[4]));
+                         b=Math.max(0.04,(s0+(e1-s0)*pr)/100)*0.9;
+                       }
+                       break; }
+    case 'ColorWash':  col=pick(beat/4);
+                       b=/Shimmer=1/.test(base[2]) ? 0.55+0.45*hashF(m.name,Math.floor(t*12)) : 0.6+0.3*pulse; break;
+    default:           col=pick(0); b=0.7;
+  }
+  const br=/C_SLIDER_Brightness=(\d+)/.exec(base[2]);   // the layered color bed is dim
+  if(br) b*=(+br[1])/100;
+  return {col:shade(col, Math.min(1,b))};
+}
+function drawMouth(ctx,x,y,v,gs){
+  ctx.save();
+  ctx.strokeStyle='#FFF3B0'; ctx.lineWidth=2*gs; ctx.fillStyle='#0B1026';
+  const my=y+2*gs, s=gs;
+  ctx.beginPath(); ctx.ellipse(x,my,6.5*s,7*s,0,0,7); ctx.fill();  // blank the resting mouth
+  ctx.beginPath();
+  switch(v){
+    case 'AI': ctx.ellipse(x,my,5*s,6*s,0,0,7); break;             // jaw open
+    case 'E':  ctx.ellipse(x,my,6*s,2.5*s,0,0,7); break;           // wide
+    case 'O':  ctx.arc(x,my,4.5*s,0,7); break;                     // round
+    case 'U':  ctx.arc(x,my,2.6*s,0,7); break;                     // small round
+    case 'WQ': ctx.ellipse(x,my,3*s,3.6*s,0,0,7); break;
+    case 'FV': ctx.moveTo(x-4*s,my); ctx.lineTo(x+4*s,my); ctx.moveTo(x-3*s,my-1.6*s); ctx.lineTo(x+3*s,my-1.6*s); break;
+    case 'MBP':ctx.moveTo(x-4.5*s,my); ctx.lineTo(x+4.5*s,my); break; // closed
+    case 'L':  ctx.ellipse(x,my,4*s,4.5*s,0,0,7); ctx.moveTo(x,my+2.5*s); ctx.lineTo(x,my-2*s); break;
+    default:   ctx.ellipse(x,my,3.5*s,2*s,0,0,7);                  // etc: slightly open
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawPreviewFrame(t){
+  const A=S.analysis; if(!A){ return; }
+  // beat pulse 0..1
+  let pulse=0;
+  for(const b of A.beats){ if(b<=t && t-b<0.25){ pulse=1-(t-b)/0.25; break; } if(b>t) break; }
+  S.beatPulse=pulse;
+  S._prevT=t; S._fx={}; S._faceFx={}; S._screenFx={};   // per-node animation data, rebuilt each frame
+  const tMs=t*1000;
+  const sec=A.sections.find(s=>t>=s.start&&t<s.end);
+  const kind=sec?sec.kind:'quiet';
+  document.getElementById('playSection').textContent=kind.toUpperCase();
+  const P=PALETTES[S.sequence?S.sequence.style:'traditional'];
+  const palMap={quiet:P.B,verse:P.A,build:P.C,chorus:P.C};
+  const pal=palMap[kind];
+  const lit={};
+  const barIdx=Math.floor(t*2);
+  let curLine=null;
+  if(S.lyrics) curLine=S.lyrics.lines.find(l=>t>=l.start&&t<l.end);
+  const singing = new Set(curLine?curLine.faces:[]);
+  let w=null, ph=null;
+  if(curLine){
+    w=curLine.words.find(x=>t>=x.start&&t<x.end);
+    ph=w&&w.phones.find(p=>t>=p.start&&t<p.end);
+  }
+  S.models.forEach((m,i)=>{
+    if(m.role==='Skip') return;
+    if(m.role==='Singing Face'){
+      const isSinging=singing.has(m.name);
+      lit[m.name] = isSinging
+        ? ((curLine&&curLine.color) || (typeof faceColorOf==='function'?faceColorOf(m.name):'#FF4D5E'))
+        : '#202048';
+      // node-range faces (singing bulbs, coro faces) light their own pixels
+      // in the house render — outline, blinking eyes, the current mouth
+      if(m.faceParts && m.customNodes){
+        const phase=hashF(m.name,7)*3.8;
+        S._faceFx[m.name]={ vis:isSinging?(ph?ph.v:'MBP'):'rest',
+                            col:isSinging?lit[m.name]:'#3A4270',
+                            blink:((t+phase)%3.8)<0.18 };
+      }
+      return;
+    }
+    // screens on shaders/karaoke render their actual frame onto their pixels
+    if(m.role==='Matrix/Screen' && typeof screenPreviewFrame==='function'){
+      const img=screenPreviewFrame(m,t,P);
+      if(img){ S._screenFx[m.name]=img; lit[m.name]=P.accent; return; }
+    }
+    const pc=planColorAt(m,tMs,t,pulse);          // real plan drives the preview
+    if(pc){ lit[m.name]=pc.col||'#10152E'; return; }
+    // no plan generated yet: fall back to section-palette pulses
+    if(m.role==='Special/Accent' && (kind==='quiet'||kind==='verse')){ lit[m.name]='#141A30'; return; }
+    const base=pal[(i+barIdx)%pal.length];
+    lit[m.name]=shade(base, kind==='quiet'?0.35:0.5+0.5*pulse);
+  });
+  // whole-display moment: one shared frame sampled house-wide on every prop
+  const cmv=S._canvasMoment;
+  if(cmv && t>=cmv.start && t<cmv.end && typeof canvasMomentImage==='function'){
+    const img=canvasMomentImage(cmv,t,P);
+    if(img) S.models.forEach(m=>{ if(m.role!=='Skip'&&m.role!=='Singing Face'){ S._screenFx[m.name]=img; lit[m.name]=P.accent; } });
+  }
+  // bass hit flash
+  if(A.hits.some(h=>t>=h&&t-h<0.15)) Object.keys(lit).forEach(k=>lit[k]='#FFFFFF');
+  const get=drawHouse('previewCanvas', lit);
+  const c=document.getElementById('previewCanvas'), ctx=c.getContext('2d'), W=c.width, H=c.height;
+  const gs=Math.max(1,Math.min(2.1,W/760));
+  // animated mouths on the singing faces (current viseme) — character image
+  // sets (assigned in step 5) render like xLights matrix faces, scaled to
+  // the prop's real footprint; node-range faces were already lit in place
+  // by the house render, so they get no overlay at all
+  if(get) S.models.forEach(m=>{
+    if(m.role!=='Singing Face') return;
+    if(m.faceParts && m.customNodes) return;   // rendered on its own pixels
+    const isSinging=singing.has(m.name);
+    const art=typeof faceArtImage==='function' ? faceArtImage(m.name, isSinging?(ph?ph.v:'MBP'):'rest') : null;
+    const p=get(m); if(!p) return;
+    if(art){
+      const e=typeof modelExtent==='function'?modelExtent(m):null;
+      const sc=S._prevScale||1;
+      const hpx=e?Math.max(30,(e.maxY-e.minY)*sc):Math.max(46, Math.min(110, 40*gs*2));
+      ctx.save();
+      ctx.globalAlpha=isSinging?1:0.4;
+      const wpx=hpx*(art.width/art.height);
+      ctx.drawImage(art, p[0]-wpx/2, p[1]-hpx/2, wpx, hpx);
+      ctx.restore();
+    } else if(isSinging && curLine){
+      drawMouth(ctx,p[0],p[1],ph?ph.v:'MBP',gs*2.1);
+    }
+  });
+  // karaoke overlay: current line with the active word highlighted
+  if(curLine){
+    const fs=Math.max(20,Math.min(36,Math.round(W/32)));
+    ctx.save();
+    ctx.font=`700 ${fs}px "Big Shoulders Display",Impact,sans-serif`;
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=8;
+    const widths=curLine.words.map(x=>ctx.measureText(x.text+' ').width);
+    let x=W/2 - widths.reduce((a,b)=>a+b,0)/2;
+    const lc = typeof lineColorOf==='function' ? lineColorOf(curLine) : null;   // singer's color
+    curLine.words.forEach((word,i)=>{
+      ctx.fillStyle = word===w ? '#FFC94D' : (lc||'rgba(233,236,250,.72)');
+      ctx.fillText(word.text, x, H-24);
+      x+=widths[i];
+    });
+    if(ph){ ctx.font=`600 ${Math.round(fs*0.42)}px "JetBrains Mono",monospace`;
+      ctx.fillStyle='#7FD9FF'; ctx.fillText('· '+ph.v, x+8, H-24); }
+    ctx.restore();
+    document.getElementById('playLyric').textContent='';
+  } else {
+    const next=S.lyrics&&S.lyrics.lines.find(l=>l.start>t&&l.start<t+8);
+    document.getElementById('playLyric').textContent=next?('next ♪ '+next.text):'';
+  }
+  drawScrub(t);
+}
+/* section strip under the preview — click or drag to seek */
+function drawScrub(t){
+  const c=document.getElementById('scrubCanvas'); if(!c||!S.analysis||!S.audio) return;
+  const W=c.width=c.offsetWidth, H=c.height, dur=S.audio.duration;
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const SC={quiet:'#1E2A5E',verse:'#2A3F8F',build:'#8F6A2A',chorus:'#8F2A3A'};
+  S.analysis.sections.forEach(s=>{ ctx.fillStyle=SC[s.kind]; ctx.fillRect(s.start/dur*W,0,(s.end-s.start)/dur*W,H); });
+  ctx.fillStyle='#05081A'; ctx.globalAlpha=.75;
+  ctx.fillRect(0,0,S.analysis.musicStart/dur*W,H);
+  ctx.fillRect(S.analysis.musicEnd/dur*W,0,W-S.analysis.musicEnd/dur*W,H);
+  ctx.globalAlpha=1;
+  if(S.lyrics) S.lyrics.lines.forEach(l=>{
+    ctx.fillStyle=typeof lineColorOf==='function'?lineColorOf(l):'#FF4D5E';
+    ctx.fillRect(l.start/dur*W,H-5,Math.max(2,(l.end-l.start)/dur*W),3);
+  });
+  ctx.fillStyle='#FFC94D'; ctx.fillRect(t/dur*W-1,0,2,H);
+}
+(function(){
+  const c=document.getElementById('scrubCanvas');
+  let down=false;
+  const seek=e=>{
+    if(!S.audio) return;
+    const r=c.getBoundingClientRect();
+    const p=document.getElementById('player');
+    p.currentTime=Math.max(0,Math.min(S.audio.duration-0.05,(e.clientX-r.left)/r.width*S.audio.duration));
+    if(!S.playing){ drawPreviewFrame(p.currentTime); updateClock(p.currentTime); drawLyricEditCanvas(); }
+  };
+  c.addEventListener('mousedown',e=>{ down=true; seek(e); });
+  window.addEventListener('mousemove',e=>{ if(down) seek(e); });
+  window.addEventListener('mouseup',()=>down=false);
+})();
+function shade(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  const r=Math.round(((n>>16)&255)*f), g=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
+  return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function renderVideoGuide(){
+  const screens=S.models.filter(m=>m.role==='Matrix/Screen');
+  const el=document.getElementById('videoGuide');
+  if(!screens.length){ el.innerHTML='<h3>Video surfaces</h3><p class="note">No matrix, banner, window, or garage screens detected in this layout. If you add one later, re-run SimpleShow and this section fills in with content guidance.</p>'; return; }
+  el.innerHTML=`<h3>Video surfaces detected</h3>
+  <p>These models can run the xLights <b>Video</b> effect: <b>${screens.map(s=>esc(s.name)).join(', ')}</b>.</p>
+  <p class="note">Content sources (licensed material only): purchased matrix video packs from sequencing vendors, royalty-free winter/bokeh stock loops (check public-display terms), or build your own inside xLights with layered Shader + Text + Snowflakes effects — those render gorgeously on a matrix and cost nothing. The setup guide download has placement suggestions per song section.</p>`;
+}
+/* step-5 lyric-timing nudge: mirrors the step-3 slider, then rebuilds the
+   lyrics AND regenerates the plan with the SAME seed — the choreography is
+   untouched, only the sung spans move, and what you export is what you hear */
+let _nudgeT=null;
+document.getElementById('lyricsOffset2').addEventListener('input', e=>{
+  const v=e.target.value;
+  document.getElementById('lyricsOffset').value=v;
+  document.getElementById('lyricsOffsetLabel').textContent=v+' ms';
+  document.getElementById('lyricsOffset2Label').textContent=v+' ms';
+  clearTimeout(_nudgeT);
+  _nudgeT=setTimeout(()=>{
+    if(!S.analysis) return;
+    if(S.sequence) generateShow(); else buildLyrics();
+    if(typeof saveSession==='function') saveSession();
+    const p=document.getElementById('player');
+    if(!S.playing) drawPreviewFrame(p.currentTime||0);
+  },300);
+});
+/* session persistence: settings survive a refresh (audio can't — see note) */
+['styleSel','moodSel','intensity','useShockwaves','useVU','useCanvasMoment'].forEach(id=>
+  document.getElementById(id).addEventListener('change', ()=>{ if(typeof saveSession==='function') saveSession(); }));
+let _lyrSaveT=null;
+document.getElementById('lyricsBox').addEventListener('input', ()=>{
+  clearTimeout(_lyrSaveT);
+  _lyrSaveT=setTimeout(()=>{ if(typeof saveSession==='function') saveSession(); }, 800);
+});
+/* lyrics can come from a text file too — the browse button, or a drop onto
+   the box itself. .lrc karaoke files are cleaned to plain lines: metadata
+   tags and [mm:ss.xx] timestamps stripped (SimpleShow does its own timing). */
+/* ---- synced line timing (LRCLIB downloads + timestamped .lrc files) ----
+   Human-synced [mm:ss.xx] line stamps beat any automatic layout, so when a
+   store exists and its line count matches the lyrics box, buildLyrics uses
+   the stamps as line starts (words inside lines stay automatic). */
+const AUTOSHOW_LRCTIMES_KEY='autoshow.lrctimes.v1.';
+function lrcStoreKey(){ return AUTOSHOW_LRCTIMES_KEY+(S.audio?S.audio.name+'|'+Math.round(S.audio.duration):'-'); }
+function saveLrcTimes(entries){
+  S.lrcTimes=(entries&&entries.length)?entries:null;
+  try{
+    if(S.lrcTimes) localStorage.setItem(lrcStoreKey(), JSON.stringify(S.lrcTimes));
+    else localStorage.removeItem(lrcStoreKey());
+  }catch(e){}
+}
+function loadLrcTimes(){
+  try{ const v=JSON.parse(localStorage.getItem(lrcStoreKey())||'null'); S.lrcTimes=(Array.isArray(v)&&v.length)?v:null; }
+  catch(e){ S.lrcTimes=null; }
+}
+/* [mm:ss.xx] stamps → sorted {t,text} entries; multi-stamp lines expand to
+   one entry per stamp (karaoke repeats), stamps with no text are dropped */
+function parseLrcTimes(text){
+  const out=[];
+  String(text).replace(/\r\n?/g,'\n').split('\n').forEach(line=>{
+    const stamps=[...line.matchAll(/\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g)];
+    if(!stamps.length) return;
+    const txt=line.replace(/\[[^\]]*\]/g,'').trim();
+    if(!txt) return;
+    stamps.forEach(mm=>{
+      const frac=mm[3]?(+mm[3])/Math.pow(10,mm[3].length):0;
+      out.push({t:(+mm[1])*60+(+mm[2])+frac, text:txt});
+    });
+  });
+  return out.sort((a,b)=>a.t-b.t);
+}
+/* "Artist - Title.mp3" → search prefill */
+function guessArtistTitle(fname){
+  let s=String(fname||'').replace(/\.[a-z0-9]+$/i,'').replace(/^\s*\d{1,3}\s*[-._]\s*/,'').replace(/_+/g,' ').trim();
+  const parts=s.split(/\s+-\s+/);
+  return parts.length>=2 ? {artist:parts[0].trim(), title:parts.slice(1).join(' - ').trim()} : {artist:'', title:s};
+}
+async function searchLrclib(){
+  const el=document.getElementById('lrcResults');
+  const artist=document.getElementById('lrcArtist').value.trim();
+  const title=document.getElementById('lrcTitle').value.trim();
+  if(!title){ el.textContent='Type at least the song title.'; return; }
+  el.textContent='Searching lrclib.net…';
+  const dur=S.audio?Math.round(S.audio.duration):0;
+  try{
+    let list=[];
+    if(artist && dur){   // exact match first: artist + title + duration
+      const r=await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=${dur}`);
+      if(r.ok){ const j=await r.json(); if(j && j.syncedLyrics) list=[j]; }
+    }
+    if(!list.length){
+      const r=await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent((artist?artist+' ':'')+title)}`);
+      if(r.ok) list=(await r.json()).filter(x=>x && x.syncedLyrics);
+    }
+    if(!list.length){ el.textContent='No synced lyrics found for that search — paste or load the lyrics instead.'; return; }
+    renderLrcResults(list.slice(0,6));
+  }catch(e){ el.textContent="Couldn't reach lrclib.net — check your connection, or paste the lyrics instead."; }
+}
+function renderLrcResults(list){
+  S._lrcCandidates=list;
+  const dur=S.audio?S.audio.duration:0;
+  document.getElementById('lrcResults').innerHTML=list.map((x,i)=>{
+    const match=dur && Math.abs((x.duration||0)-dur)<3;
+    return `<div style="margin:2px 0">${match?'✅':'·'} <a href="#" onclick="applyLrcResult(${i});return false" style="color:var(--bulb-gold)">${esc(x.trackName||x.name||'?')}</a> — ${esc(x.artistName||'?')} · ${Math.round(x.duration||0)}s${match?' (matches your song)':''}</div>`;
+  }).join('');
+}
+function applyLrcResult(i){
+  const x=S._lrcCandidates && S._lrcCandidates[i]; if(!x) return;
+  const el=document.getElementById('lrcResults');
+  if(x.instrumental){ el.textContent='That track is marked instrumental — no lyrics to sync.'; return; }
+  const entries=parseLrcTimes(x.syncedLyrics||'');
+  const box=document.getElementById('lyricsBox');
+  if(box.value.trim() && !confirm('Replace the current lyrics with the downloaded synced lyrics?')) return;
+  saveLrcTimes(entries);
+  box.value=entries.length ? entries.map(e=>e.text).join('\n') : (x.plainLyrics||'');
+  box.dispatchEvent(new Event('input',{bubbles:true}));
+  el.innerHTML=`✅ Loaded ${entries.length} timed lines — every line now starts where a human synced it.`;
+}
+function loadLyricsText(text){
+  let t=String(text).replace(/\r\n?/g,'\n');
+  // a timestamped .lrc brings its line timing along; repeats become real lines
+  const timed=parseLrcTimes(t);
+  saveLrcTimes(timed);   // plain text clears any stale timing for this song
+  if(timed.length) t=timed.map(e=>e.text).join('\n');
+  else {
+    t=t.replace(/^\[(ar|ti|al|au|by|offset|length|re|ve):[^\]]*\]\s*$/gim,'');
+    t=t.replace(/\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]/g,'');
+    t=t.split('\n').map(l=>l.trim()).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  const box=document.getElementById('lyricsBox');
+  box.value=t;
+  box.dispatchEvent(new Event('input',{bubbles:true}));   // same path as typing
+  return t;
+}
+(function(){
+  const inp=document.getElementById('fileLyrics'), box=document.getElementById('lyricsBox');
+  const readF=f=>{ const r=new FileReader(); r.onload=()=>loadLyricsText(r.result); r.readAsText(f); };
+  inp.addEventListener('change', ()=>{ if(inp.files[0]) readF(inp.files[0]); inp.value=''; });
+  box.addEventListener('dragover', e=>{
+    if([...(e.dataTransfer.items||[])].some(i=>i.kind==='file')){
+      e.preventDefault(); box.style.borderColor='var(--bulb-gold)';
+    }
+  });
+  box.addEventListener('dragleave', ()=>box.style.borderColor='');
+  box.addEventListener('drop', e=>{
+    box.style.borderColor='';
+    if(e.dataTransfer.files[0]){ e.preventDefault(); readF(e.dataTransfer.files[0]); }
+  });
+})();
+/* text sizer: 5 sizes XXS–XXL; "Normal" (1.06) sits slightly above the old base */
+const AUTOSHOW_TEXTSCALE_KEY='autoshow.textscale.v1';
+function applyTextScale(v){
+  document.documentElement.style.setProperty('--ts', v);
+  document.querySelectorAll('#textSizer button').forEach(b=>b.classList.toggle('active', parseFloat(b.dataset.ts)===v));
+  try{ localStorage.setItem(AUTOSHOW_TEXTSCALE_KEY, String(v)); }catch(e){}
+}
+(function(){
+  document.querySelectorAll('#textSizer button').forEach(b=>b.addEventListener('click', ()=>applyTextScale(parseFloat(b.dataset.ts))));
+  let saved=1.06;
+  try{ saved=parseFloat(localStorage.getItem(AUTOSHOW_TEXTSCALE_KEY))||1.06; }catch(e){}
+  applyTextScale(saved);
+})();
+if(typeof restoreSession==='function') restoreSession();
+window.addEventListener('resize', ()=>{
+  if(!S.models.length) return;
+  drawHouse();
+  if(document.getElementById('panel4').classList.contains('active')) sizePreview();
+});
+</script>
+</body>
+</html>
