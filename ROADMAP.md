@@ -46,6 +46,23 @@ negative space, ramps, and prop families.
 
 ## Shipped
 
+- **2026-07-10 — xsq database fix: shaders render, colors are colors**
+  (user-reported from real xLights testing). The exporter wrote its
+  settings/palette databases as lowercase `<colorpalettes>`/`<effectdb>`
+  with `ref` attributes inside a `<databases>` wrapper — a structure
+  xLights silently ignores, so **every effect rendered with default
+  settings** (Shader effects had no file → blank screens) **and the
+  default white palette** (the "everything is white" symptom). Now the
+  export writes exactly what xLights itself writes: top-level
+  `<ColorPalettes>`/`<EffectDB>`, entries indexed by position, palettes
+  in the pro byte-format (8 buttons, then only the checked checkboxes),
+  plus a `<version>` header. Confirmed against xLights master source that
+  relative `Shaders/SimpleShow/…​.fs` paths resolve against the show
+  folder (xLights even converts absolute paths to relative for
+  portability). e2e now pins the section shapes (197 asserts).
+  **Re-export any earlier sequence** — all previous exports carried the
+  bug.
+
 - **2026-07-09 — Show bundle download + whole-display canvas moments.**
   (1) Step 5's primary download is now a **show bundle zip** in proper
   show-folder layout: the `.xsq` at the root, `Shaders/SimpleShow/` with
