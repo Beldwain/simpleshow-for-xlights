@@ -1426,7 +1426,10 @@ function buildXSQ(){
     const effs=plan[n];
     const layers=Math.max(1, ...effs.map(e=>e[0]+1));
     body.push(`  <Element type="model" name="${xesc(n)}">`);
-    for(let L=0;L<layers;L++){
+    // xLights composites bottom-up and the FIRST EffectLayer is the TOP —
+    // our plan counts layer 0 as the bottom bed, so write them reversed
+    // (otherwise opaque beds/shaders sit on top and hide every move)
+    for(let L=layers-1;L>=0;L--){
       body.push('   <EffectLayer>');
       effs.filter(e=>e[0]===L).sort((a,b)=>a[4]-b[4]).forEach(e=>{
         const [,name,settings,pal,s,en]=e;

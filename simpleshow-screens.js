@@ -479,8 +479,9 @@ function paletteHues(P){
 
 /* ================= karaoke: layout + preview + export ================= */
 /* xLights bitmap fonts have fixed cells, so word X positions are exact */
+/* only names verified in real xLights sequences — an unknown font name
+   makes the Text effect fall back to something unpredictable */
 const KAR_FONTS=[
-  {name:'5-5x8', w:5, h:8, adv:6},
   {name:'6-5x6 Thin', w:5, h:6, adv:6},
   {name:'8-8x8 Thin', w:8, h:8, adv:9},
   {name:'10-12x12 Bold', w:12, h:12, adv:13},
@@ -507,37 +508,43 @@ function karWordOffsets(line){
   return {offsets:out, total:Math.max(0,ch-1)};
 }
 const KAR_MODES={scroll:'Scrolling', ball:'Bouncing ball', hilite:'Highlighted', outline:'Highlighted + outline'};
-/* Build the xsq placements for one screen. Returns [{layer,effect,settings,pal,s,e}] */
+/* Build the xsq placements for one screen. Returns [{layer,effect,settings,pal,s,e}].
+   xLights bitmap fonts are variable-width, so word positions inside a line
+   can't be computed here. The karaoke layout is metrics-free instead:
+   the full line rides the top half of the matrix (always centered — that's
+   the Text effect's native behavior) and the CURRENT word pops big and
+   centered in the bottom half for exactly its sung span. Short matrices
+   show only the word pops. XStart/YStart are pixel offsets FROM CENTER. */
 function karPlacements(m, mode, lines, accent, baseLayer){
   const out=[];
   const T=(text,font,x,y,extra)=>
     `E_CHECKBOX_TextToCenter=0,E_CHECKBOX_Text_PixelOffsets=1,E_CHOICE_Text_Count=none,`+
-    `E_CHOICE_Text_Dir=${extra&&extra.dir||'none'},E_CHOICE_Text_Effect=normal,E_CHOICE_Text_Font=${font.name},`+
-    `E_FILEPICKERCTRL_Text_File=,E_SLIDER_Text_XEnd=${x},E_SLIDER_Text_XStart=${x},`+
-    `E_SLIDER_Text_YEnd=${y},E_SLIDER_Text_YStart=${y},E_TEXTCTRL_Text=${text.replace(/,/g,';')},`+
-    `E_TEXTCTRL_Text_Speed=${extra&&extra.speed||15}`;
-  const {cols}=screenGrid(m);
+    `E_CHOICE_Text_Dir=${(extra&&extra.dir)||'none'},E_CHOICE_Text_Effect=normal,E_CHOICE_Text_Font=${font.name},`+
+    `E_FILEPICKERCTRL_Text_File=,E_SLIDER_Text_XEnd=${(extra&&extra.xe!==undefined)?extra.xe:x},E_SLIDER_Text_XStart=${x},`+
+    `E_SLIDER_Text_YEnd=${(extra&&extra.ye!==undefined)?extra.ye:y},E_SLIDER_Text_YStart=${y},E_TEXTCTRL_Text=${text.replace(/,/g,';')},`+
+    `E_TEXTCTRL_Text_Speed=${(extra&&extra.speed)||15}`;
+  const {rows}=screenGrid(m);
   lines.forEach(l=>{
-    const text=l.text;
-    const {font,fits}=karFontFor(m,text);
+    const {font,fits}=karFontFor(m,l.text);
     const s=l.start, e=l.end;
     if(mode==='scroll' || !fits){
-      out.push({layer:baseLayer, effect:'Text', settings:T(text,font,0,0,{dir:'left',speed:Math.max(8,Math.min(30,Math.round(text.length*font.adv/Math.max(1,e-s)/2)))}), pal:['#FFFFFF'], s, e});
+      out.push({layer:baseLayer+1, effect:'Text', settings:T(l.text,font,0,0,{dir:'left',speed:Math.max(8,Math.min(30,Math.round(l.text.length*font.adv/Math.max(1,e-s)/2)))}), pal:['#FFFFFF'], s, e});
       return;
     }
-    const x0=Math.max(0,Math.floor((cols-text.length*font.adv)/2));
-    out.push({layer:baseLayer, effect:'Text', settings:T(text,font,x0,0), pal:['#FFFFFF'], s, e});
-    if(mode==='outline')
-      out.push({layer:baseLayer+1, effect:'Text', settings:T(text,font,x0+1,1), pal:['#000000'], s, e});
-    const wo=karWordOffsets(l);
-    wo.offsets.forEach(({word,chars})=>{
-      const wx=x0+chars*font.adv;
-      if(mode==='hilite'||mode==='outline'||mode==='ball')
-        out.push({layer:baseLayer+2, effect:'Text', settings:T(word.text,font,wx,0), pal:[accent], s:word.start, e:word.end});
-      if(mode==='ball'){
-        const bx=wx+Math.floor(word.text.length*font.adv/2)-Math.floor(font.adv/2);
-        out.push({layer:baseLayer+3, effect:'Text', settings:T('*',font,bx,-font.h), pal:[accent], s:word.start, e:word.end});
-      }
+    const stacked = rows >= 2*(font.h+2);
+    const yLine = stacked ? Math.floor(rows/4) : 0;    // positive = up
+    const yWord = stacked ? -Math.floor(rows/4) : 0;
+    if(stacked){
+      out.push({layer:baseLayer+1, effect:'Text', settings:T(l.text,font,0,yLine), pal:['#FFFFFF'], s, e});
+      if(mode==='outline')
+        out.push({layer:baseLayer, effect:'Text', settings:T(l.text,font,1,yLine-1), pal:['#000000'], s, e});
+    }
+    l.words.forEach(w=>{
+      out.push({layer:baseLayer+2, effect:'Text', settings:T(w.text,font,0,yWord), pal:[accent], s:w.start, e:w.end});
+      if(mode==='outline')
+        out.push({layer:baseLayer, effect:'Text', settings:T(w.text,font,1,yWord-1), pal:['#000000'], s:w.start, e:w.end});
+      if(mode==='ball')  // the ball drops onto the word for its sung span
+        out.push({layer:baseLayer+3, effect:'Text', settings:T('*',font,0,yWord+font.h+Math.floor(rows/4),{dir:'vector', xe:0, ye:yWord+font.h+1}), pal:[accent], s:w.start, e:w.end});
     });
   });
   return out;
@@ -555,30 +562,35 @@ function renderKaraokeFrame(m, mode, t, accent, bg){
   if(line){
     const {font,fits}=karFontFor(m,line.text);
     const scroll=(mode==='scroll'||!fits);
-    x.font=`bold ${font.h}px monospace`; x.textBaseline='middle';
-    const y=Math.floor(rows/2);
-    const wo=karWordOffsets(line);
-    let x0;
+    x.font=`bold ${font.h}px monospace`; x.textBaseline='middle'; x.textAlign='left';
     if(scroll){
       const total=line.text.length*font.adv;
       const pr=(t-line.start)/Math.max(0.001,line.end-line.start);
-      x0=Math.round(cols-(cols+total)*pr);
-    } else x0=Math.max(0,Math.floor((cols-line.text.length*font.adv)/2));
-    const word=line.words.find(w=>t>=w.start&&t<w.end);
-    if(mode==='outline'&&!scroll){ x.fillStyle='#000';
-      wo.offsets.forEach(({word:w,chars})=>{ const wx=x0+chars*font.adv;
-        for(let ci=0;ci<w.text.length;ci++) x.fillText(w.text[ci],wx+ci*font.adv+1,y+1); }); }
-    wo.offsets.forEach(({word:w,chars})=>{
-      const wx=x0+chars*font.adv;
-      x.fillStyle=(!scroll&&(mode!=='scroll')&&w===word)?accent:'#FFFFFF';
-      for(let ci=0;ci<w.text.length;ci++) x.fillText(w.text[ci],wx+ci*font.adv,y);
-      if(mode==='ball'&&w===word&&!scroll){
-        x.fillStyle=accent;
-        const bx=wx+w.text.length*font.adv/2;
-        const bounce=Math.abs(Math.sin((t-w.start)/Math.max(0.05,w.end-w.start)*Math.PI));
-        x.beginPath(); x.arc(bx,y-font.h+ (1-bounce)*3,1.6,0,7); x.fill();
+      x.fillStyle='#FFFFFF';
+      x.fillText(line.text, Math.round(cols-(cols+total)*pr), Math.floor(rows/2));
+    } else {
+      // stacked karaoke: full line up top, the current word pops below
+      const stacked = rows >= 2*(font.h+2);
+      const yLine = stacked ? Math.floor(rows/4) : Math.floor(rows/2);
+      const yWord = stacked ? Math.floor(rows*3/4) : Math.floor(rows/2);
+      const word=line.words.find(w=>t>=w.start&&t<w.end);
+      x.textAlign='center';
+      const draw=(txt,cy,col,off)=>{ x.fillStyle=col; x.fillText(txt, cols/2+(off||0), cy+(off||0)); };
+      if(stacked){
+        if(mode==='outline') draw(line.text,yLine,'#000',1);
+        draw(line.text,yLine,'#FFFFFF',0);
       }
-    });
+      if(word){
+        if(mode==='outline') draw(word.text,yWord,'#000',1);
+        draw(word.text,yWord,accent,0);
+        if(mode==='ball'){
+          const pr=(t-word.start)/Math.max(0.05,word.end-word.start);
+          const drop=Math.min(1,pr*3);
+          x.fillStyle=accent; x.beginPath();
+          x.arc(cols/2, yWord-font.h-Math.round((1-drop)*rows/4), 1.6, 0, 7); x.fill();
+        }
+      }
+    }
   }
   const img=x.getImageData(0,0,cols,rows);
   return {data:img.data, w:cols, h:rows, flipY:false};

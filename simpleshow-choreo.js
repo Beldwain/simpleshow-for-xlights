@@ -306,7 +306,7 @@ function treeProgram(ctx, ph, fam){
   } else if(ph.kind==='verse'){
     // verses trade spirals with tendrils — the two classic mega-tree textures
     const t=[['Spirals','E_SLIDER_Spirals_Count=3,E_SLIDER_Spirals_Movement=10'],
-             ['Tendril','E_CHOICE_Tendril_Movement=Vertical Zig Zag,E_SLIDER_Tendril_TrailLength=20']][ph.idx%2];
+             ['Tendril','E_CHOICE_Tendril_Movement=Vertical Zig Zag,E_SLIDER_Tendril_TrailLength=20,E_SLIDER_Tendril_Thickness=3']][ph.idx%2];
     tex(t[0],t[1],'A');
   } else if(ph.kind==='build'){
     tex('Spirals','E_SLIDER_Spirals_Count=5,E_SLIDER_Spirals_Movement=25','C',spark);
@@ -315,7 +315,7 @@ function treeProgram(ctx, ph, fam){
     const t=[['Butterfly','E_SLIDER_Butterfly_Chunks=4,E_SLIDER_Butterfly_Speed=20'],
              ['Curtain','E_CHOICE_Curtain_Edge=center,E_CHOICE_Curtain_Effect=open then close,E_CHECKBOX_Curtain_Repeat=1'],
              ['Spirals','E_SLIDER_Spirals_Count=4,E_SLIDER_Spirals_Movement=30'],
-             ['Tendril','E_CHOICE_Tendril_Movement=Circle,E_SLIDER_Tendril_TrailLength=25'],
+             ['Tendril','E_CHOICE_Tendril_Movement=Circle,E_SLIDER_Tendril_TrailLength=25,E_SLIDER_Tendril_Thickness=3'],
              ['Curtain','E_CHOICE_Curtain_Edge=bottom,E_CHOICE_Curtain_Effect=open,E_CHECKBOX_Curtain_Repeat=1'], // a bottom-up wipe
              ['Pinwheel','E_SLIDER_Pinwheel_Arms=6,E_SLIDER_Pinwheel_Speed=20']][ph.idx%6];
     tex(t[0],t[1],'C',spark);

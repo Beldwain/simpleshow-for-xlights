@@ -46,6 +46,27 @@ negative space, ramps, and prop families.
 
 ## Shipped
 
+- **2026-07-10 — Layer-order fix + metrics-free karaoke** (user-reported:
+  karaoke invisible in xLights, mega tree "only 2 lines of lights").
+  Verified in xLights source that it composites layers bottom-up and the
+  **first `EffectLayer` is the TOP layer** — the opposite of the plan's
+  0=bed convention — so exports wrote opaque beds/shaders on top of
+  everything (karaoke text hidden entirely under the dimmed shader; moves
+  hidden under beds). The exporter now writes each element's layers in
+  reverse. Also from the source: xLights bitmap fonts are
+  **variable-width** (per-glyph advance), so exact per-word X positions
+  are impossible to compute externally — karaoke re-designed to be
+  metrics-free: the full line rides the top half of the matrix (Text
+  centers natively), the **current word pops big and centered in the
+  bottom half** for exactly its sung span, the ball drops onto it via a
+  vector move, and outline mode shadows both from the layer below; short
+  matrices show word-pops only; over-wide lines still scroll. Dropped an
+  invented font name (only names seen in real sequences remain). The
+  mega-tree Tendril now renders 3 thick (it's inherently a 1-pixel trail —
+  that was the "2 lines of lights"), and with the layer fix its color bed
+  shows beneath again. 198 e2e asserts incl. layer-reversal and stacked-
+  karaoke checks.
+
 - **2026-07-10 — xsq database fix: shaders render, colors are colors**
   (user-reported from real xLights testing). The exporter wrote its
   settings/palette databases as lowercase `<colorpalettes>`/`<effectdb>`
