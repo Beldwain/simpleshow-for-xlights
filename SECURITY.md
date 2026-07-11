@@ -2,8 +2,7 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Versions of Simpleshow that are currently being supported with security updates.
 
 | Version     | Supported          |
 | ----------- | ------------------ |
@@ -12,8 +11,8 @@ currently being supported with security updates.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please use the issues section to report any bugs or problems with the code.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Security should be a reasonably low issue with running this directly in you computer.  
+
+This application is designed to run offline if you do not require the connection to any API calls that are built into the system where lyrics and timing are pulled in a readonly format. If any other API calls are added they will be listed here for easy tracking.
