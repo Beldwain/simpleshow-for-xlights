@@ -112,3 +112,18 @@ For end-to-end checks, `.e2e/` holds a headless-Chromium harness: copies of
 the app with a `driver.js` script appended that builds a synthetic layout +
 analysis, exercises a feature, and appends a `PASS`/`FAIL` report to the DOM
 (`chromium --headless=new --dump-dom` to run, `--screenshot` for a visual).
+
+## Acknowledgments
+
+SimpleShow is an independent project and **includes no xLights source code**. It
+interoperates with [xLights](https://xlights.org) purely through its file
+formats — reading `xlights_rgbeffects.xml` and writing the `.xsq` sequence — and
+by emitting xLights' effect and parameter names so the output opens natively.
+Where SimpleShow matches a specific xLights behavior (layer compositing order,
+bitmap-font metrics, shader-path resolution), that behavior was verified against
+the public xLights source and then re-implemented from scratch. The 20 included
+shaders are original, exported in the open [ISF](https://isf.video) format.
+
+xLights is a separate, free, open-source (GPL) project maintained by its own
+community — huge thanks to that team for the tool SimpleShow is built to feed.
+
