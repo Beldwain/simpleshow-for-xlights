@@ -11,6 +11,11 @@ folder.
 **Status:** Working against current xLights builds (verified July 2026), but
 early. See [ROADMAP.md](ROADMAP.md) for known limitations and planned work.
 
+## Wiki
+For some easy to understand guidance we now have a wiki with several area's to help guide you.
+
+![Simpleshow for xLights Wiki](https://github.com/Beldwain/simpleshow-for-xlights/wiki)
+
 ## Quick start
 
 1. Open `simpleshow-xlights.html` in any modern browser (Chrome/Edge/Firefox).
