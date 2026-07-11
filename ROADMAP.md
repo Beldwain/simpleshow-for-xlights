@@ -46,6 +46,41 @@ negative space, ramps, and prop families.
 
 ## Shipped
 
+- **2026-07-11 — Small-display release: Prop focus, face outlines, auto
+  shaders** (user request: a 3-strings + 5-faces display sat mostly dark
+  between lyric lines). Three pieces, all opt-in:
+  (1) **Detection notice** — after layout import, fewer than 5 groups AND
+  fewer than 20 non-Skip props shows an inline step-1 note offering
+  direct-to-prop sync lights; Yes checks the new toggle and regenerates.
+  (2) **Prop focus** (step-4 toggle) — families keep their structure but
+  drop group elements, so `compileChoreo` stamps every member directly;
+  the move table reweights toward chases/beat pulses, and with ≤2 families
+  the degenerate ensemble moves swap out (focus→chase, call→pulse, weights
+  merged). Idle gaps ≥3 s on RGB props auto-fill with **spin/pulse shaders**
+  (`motion` tags on 11 of the 20 catalog shaders; `propShaderFor` +
+  `propShaderPlacements` in simpleshow-screens.js) — the preview samples
+  the real shader per node on any prop (memoized per frame), and
+  `usedShaderFiles()` picks the .fs files up into the show bundle
+  automatically. Single-color strings and screens are excluded.
+  (3) **Face outlines join the show** (step-4 toggle, default off) —
+  between a face's own sung lines its FaceOutline nodes run string effects
+  (SingleStrand / Twinkle / Marquee / On fades, section-weighted, own RNG
+  stream so the main show is seed-identical) with a 0.6 s pad so the face
+  is always dark when it sings. Exported as `SubModelEffectLayer`s nested
+  in the face's element — submodels matched by node range ⊆ FaceOutline
+  (`outlineSubmodelsFor`; the real Boscoyo props match `@Bulb`+`@Socket`) —
+  the exact structure the pro Christmas Can-Can sequence uses. The preview
+  gets a gap mode: outline animates in palette color, mouth/eyes stay dark.
+  Faces without qualifying submodels silently skip the feature.
+  Also: the **Layers & moves card redesigned** — layering is now three
+  stack tiles (you see the bed/move/sparkle bars you're choosing), the
+  move vocabulary is lit bulb-chips, and the showstoppers are switch
+  tiles; all element ids unchanged so tests and session restore are
+  untouched. e2e now 234 asserts (+36) plus 14 real-layout.
+  **Still needs a real-xLights check:** two `SubModelEffectLayer`s in one
+  element importing cleanly, submodel effects blending over the dim face
+  bed, and chase continuity across the @Bulb→@Socket node order.
+
 - **2026-07-10 — Layer-order fix + metrics-free karaoke** (user-reported:
   karaoke invisible in xLights, mega tree "only 2 lines of lights").
   Verified in xLights source that it composites layers bottom-up and the

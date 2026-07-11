@@ -67,7 +67,7 @@ function famFrom(name, members, element){
   };
 }
 
-function buildFamilies(models, groups){
+function buildFamilies(models, groups, opts){
   // screens configured for shaders/karaoke are placed separately, like faces
   const seqable = models.filter(m=>m.role!=='Skip' && m.role!=='Singing Face' && !m._screenTaken);
   const byName = new Map(seqable.map(m=>[m.name,m]));
@@ -119,6 +119,10 @@ function buildFamilies(models, groups){
     families.find(f=>!f.special && f.members.some(m=>m.role==='Matrix/Screen')) ||
     [...families].filter(f=>!f.special).sort((a,b)=>b.nodes-a.nodes)[0];
   if(pickAnchor) pickAnchor.anchor=true;
+  // prop focus (small displays): keep the family structure for the
+  // choreographer, but drop the group elements so the compiler stamps every
+  // member directly — effects land on each prop, not on group buffers
+  if(opts && opts.propFocus) families.forEach(f=>f.element=null);
   const owner={};
   families.forEach(f=>{ if(f.element) f.members.forEach(m=>owner[m.name]=f); });
   return {families, allGroup, owner};
@@ -343,15 +347,29 @@ function choreograph(A, famInfo, ctx, rng){
   const en=ctx.opts.moves||{};
   const allow=mv=>mv==='hold'||en[mv]!==false;
   const MOVES={};
-  Object.entries({
+  // prop focus reweights toward string moves (chases, beat pulses); with ≤2
+  // families the ensemble moves degenerate, so focus/call swap for chase/pulse
+  const pf=ctx.opts.propFocus===true;
+  const TABLE = pf ? {
+    quiet: [['hold',4],['chase',2]],
+    verse: [['hold',2],['chase',4],['pulse',3],['sweep',1]],
+    build: [['pulse',5],['chase',4],['sweep',2]],
+    chorus:[['chase',4],['pulse',4],['call',2],['sweep',2],['focus',1]],
+  } : {
     quiet: [['hold',5],['chase',1]],
     verse: [['hold',3],['chase',3],['pulse',2],['sweep',1]],
     build: [['pulse',4],['sweep',3],['chase',2]],
     chorus:[['focus',4],['call',3],['sweep',2],['pulse',2],['chase',2]],
-  }).forEach(([k,tab])=>{
-    const kept=tab.filter(([mv])=>allow(mv));
+  };
+  Object.entries(TABLE).forEach(([k,tab])=>{
+    let t=tab;
+    if(pf && normals.length<=2)
+      t=t.map(([mv,w])=>[mv==='focus'?'chase':mv==='call'?'pulse':mv, w]);
+    const merged={}; t.forEach(([mv,w])=>merged[mv]=(merged[mv]||0)+w);
+    const kept=Object.entries(merged).filter(([mv])=>allow(mv));
     MOVES[k]=kept.length?kept:[['hold',1]];
   });
+  S._movesTable=MOVES;   // deterministic hook for the e2e drivers
   const out=[];
   const unison=(t,durS)=>{
     if(ctx.opts.useUnison===false) return;
@@ -465,6 +483,68 @@ function compileChoreo(placements, famInfo, models, ms){
   return plan;
 }
 
+/* ---------- face outlines join the light show (opt-in) ----------
+   Between a face's own sung lines its FaceOutline nodes run string effects —
+   chases, twinkles, fades — like any string of lights. A 0.6 s pad around
+   every sung window guarantees the outline is dark whenever the face sings
+   (mouths and eyes are never touched: the rows land only on the outline
+   submodels at export, and the preview's gap branch keeps them dark).
+   Returns extra plan entries keyed `<face>/FaceOutline` — virtual keys the
+   exporter turns into SubModelEffectLayers, never top-level elements. */
+const FACE_OUTLINE_KEY='/FaceOutline';
+function faceOutlinePlacements(faces, A, phrases, P, seed, ms){
+  const out={};
+  // no early bail on missing lyrics: an instrumental (or a face with no sung
+  // lines) simply has no windows to dodge, so the outline runs the whole show.
+  const lyricLines=(S.lyrics && S.lyrics.lines) ? S.lyrics.lines : [];
+  // own RNG stream: toggling the checkbox must not perturb the main show
+  const rng=makeRng((seed ^ 0xFACE01)>>>0);
+  const PAD=0.6, MIN_GAP=2.5;
+  const FX={
+    quiet: [['twinkle',3],['fade',2]],
+    verse: [['chase',3],['twinkle',2],['fade',1]],
+    build: [['chase',4],['marquee',2],['twinkle',1]],
+    chorus:[['chase',4],['marquee',2],['twinkle',1]],
+  };
+  faces.forEach(f=>{
+    if(typeof outlineSubmodelsFor!=='function' || !outlineSubmodelsFor(f).length || !f.customNodes) return;
+    // merged, padded sung windows → their complement is where the outline plays
+    const wins=lyricLines.filter(l=>l.faces.includes(f.name))
+      .map(l=>[l.start-PAD, l.end+PAD]).sort((a,b)=>a[0]-b[0]);
+    const merged=[];
+    wins.forEach(w=>{ const p=merged[merged.length-1];
+      if(p && w[0]<=p[1]) p[1]=Math.max(p[1],w[1]); else merged.push([...w]); });
+    const gaps=[]; let cur=A.musicStart??0;
+    merged.forEach(([s,e])=>{ if(s-cur>=MIN_GAP) gaps.push([cur,s]); cur=Math.max(cur,e); });
+    const end=A.musicEnd??(S.audio?S.audio.duration:cur);
+    if(end-cur>=MIN_GAP) gaps.push([cur,end]);
+    if(!gaps.length) return;
+    const rows=[];
+    phrases.forEach(ph=>{
+      gaps.forEach(([gs,ge])=>{
+        const s=Math.max(ph.start,gs), e=Math.min(ph.end,ge);
+        if(e-s<0.4) return;
+        const pal=(typeof palForModel==='function'?palForModel:(m,p)=>p)
+          (f, ph.kind==='quiet'?P.B : ph.kind==='verse'?P.A : P.C);
+        const kind=rng.weighted(FX[ph.kind]||FX.verse);
+        if(kind==='chase')
+          rows.push([0,'SingleStrand','E_CHOICE_SingleStrand_Colors=Palette,E_SLIDER_Number_Chases=1',pal,ms(s),ms(e)]);
+        else if(kind==='marquee')
+          rows.push([0,'Marquee','',pal,ms(s),ms(e)]);
+        else if(kind==='twinkle')
+          rows.push([0,'Twinkle','E_SLIDER_Twinkle_Count=12',pal,ms(s),ms(e)]);
+        else { // fade: swell up then down, the mvFlood shape
+          const mid=s+(e-s)*0.6;
+          rows.push([0,'On','E_TEXTCTRL_Eff_On_Start=0,E_TEXTCTRL_Eff_On_End=80',pal,ms(s),ms(mid)]);
+          rows.push([0,'On','E_TEXTCTRL_Eff_On_Start=80,E_TEXTCTRL_Eff_On_End=0',pal,ms(mid),ms(e)]);
+        }
+      });
+    });
+    if(rows.length) out[f.name+FACE_OUTLINE_KEY]=rows;
+  });
+  return out;
+}
+
 /* ---------- session persistence (roles & vocals persist elsewhere) ---------- */
 const AUTOSHOW_SESSION_KEY='autoshow.session.v1';
 function saveSession(){
@@ -472,6 +552,7 @@ function saveSession(){
   if(!g('lyricsBox')) return;
   const s={
     lyrics:g('lyricsBox').value,
+    hasLyrics:S.hasLyrics!==false,
     skipIntro:g('skipIntro').checked, snapOnsets:g('snapOnsets').checked,
     offset:+g('lyricsOffset').value||0,
     style:g('styleSel').value, intensity:+g('intensity').value,
@@ -482,6 +563,8 @@ function saveSession(){
     layerDepth:g('layerDepth')?g('layerDepth').value:'layered',
     unison:g('useUnison')?g('useUnison').checked:true,
     megaSpot:g('megaSpotlight')?g('megaSpotlight').checked:true,
+    outlineFx:g('faceOutlineFx')?g('faceOutlineFx').checked:false,
+    propFocus:g('propFocus')?g('propFocus').checked:false,
     moves:['Sweep','Chase','Pulse','Call','Focus'].reduce((o,k)=>{
       const el=g('mv'+k); if(el) o[k.toLowerCase()]=el.checked; return o; },{}),
   };
@@ -491,7 +574,8 @@ function restoreSession(){
   let s; try{ s=JSON.parse(localStorage.getItem(AUTOSHOW_SESSION_KEY)||'null'); }catch(e){ return; }
   if(!s) return;
   const g=id=>document.getElementById(id);
-  if(s.lyrics) g('lyricsBox').value=s.lyrics;
+  S.hasLyrics = s.hasLyrics!==false;
+  if(s.hasLyrics!==false && s.lyrics) g('lyricsBox').value=s.lyrics;   // don't restore lyrics into an instrumental show
   g('skipIntro').checked = s.skipIntro!==false;
   g('snapOnsets').checked = s.snapOnsets!==false;
   g('lyricsOffset').value = s.offset||0;
@@ -508,10 +592,13 @@ function restoreSession(){
   if(s.layerDepth && g('layerDepth')) g('layerDepth').value=s.layerDepth;
   if(g('useUnison')) g('useUnison').checked = s.unison!==false;
   if(g('megaSpotlight')) g('megaSpotlight').checked = s.megaSpot!==false;
+  // opposite polarity to the toggles above: these two default OFF
+  if(g('faceOutlineFx')) g('faceOutlineFx').checked = s.outlineFx===true;
+  if(g('propFocus')) g('propFocus').checked = s.propFocus===true;
   if(s.moves) Object.entries(s.moves).forEach(([k,v])=>{
     const el=g('mv'+k[0].toUpperCase()+k.slice(1)); if(el) el.checked=v!==false;
   });
   if(s.seed && g('seedBox')) g('seedBox').value=s.seed;
   const note=g('restoreNote');
-  if(note && s.lyrics) note.classList.remove('hidden');
+  if(note && s.hasLyrics!==false && s.lyrics) note.classList.remove('hidden');
 }

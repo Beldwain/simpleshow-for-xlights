@@ -138,19 +138,39 @@ function parseModelGeometry(n, m){
   // node-range face definitions (singing bulbs, coro faces): which nodes are
   // the outline, eyes, and each viseme mouth — lets the previews light the
   // prop's real pixels instead of a stand-in cartoon
+  const rng=s=>{ const out=[];
+    (s||'').split(',').forEach(p=>{ p=p.trim(); if(!p) return;
+      const mm=p.split('-'), a=+mm[0], b=+(mm[1]??mm[0]);
+      if(isNaN(a)||isNaN(b)) return;
+      for(let k=Math.min(a,b);k<=Math.max(a,b);k++) out.push(k); });
+    return out; };
   const fi=n.querySelector('faceInfo');
   if(fi && /noderange/i.test(fi.getAttribute('Type')||'')){
-    const rng=s=>{ const out=[];
-      (s||'').split(',').forEach(p=>{ p=p.trim(); if(!p) return;
-        const mm=p.split('-'), a=+mm[0], b=+(mm[1]??mm[0]);
-        if(isNaN(a)||isNaN(b)) return;
-        for(let k=Math.min(a,b);k<=Math.max(a,b);k++) out.push(k); });
-      return out; };
     const g=a=>rng(fi.getAttribute(a));
     m.faceParts={ outline:[...g('FaceOutline'),...g('FaceOutline2')],
                   eyesOpen:g('Eyes-Open'), eyesClosed:g('Eyes-Closed'), mouths:{} };
     ['AI','E','O','U','FV','L','MBP','WQ','etc','rest'].forEach(v=>m.faceParts.mouths[v]=g('Mouth-'+v));
   }
+  // submodel node ranges (type="ranges", one line* attribute per row) — the
+  // export targets these to light only part of a model (e.g. a face outline)
+  m.submodelRanges={};
+  n.querySelectorAll('subModel').forEach(sm=>{
+    if(!/ranges/i.test(sm.getAttribute('type')||'')) return;
+    const nodes=[];
+    for(const at of sm.attributes) if(/^line\d+$/i.test(at.name)) nodes.push(...rng(at.value));
+    if(nodes.length) m.submodelRanges[sm.getAttribute('name')||'']=nodes;
+  });
+}
+
+/* Submodels that sit entirely inside the face outline — the export writes the
+   outline's string effects onto these (xLights has no direct node targeting).
+   A face qualifies for outline effects only when at least one exists. */
+function outlineSubmodelsFor(m){
+  if(!(m.faceParts && m.faceParts.outline && m.faceParts.outline.length && m.submodelRanges)) return [];
+  const out=new Set(m.faceParts.outline);
+  return Object.entries(m.submodelRanges)
+    .filter(([,nodes])=>nodes.length && nodes.every(nn=>out.has(nn)))
+    .map(([name])=>name);
 }
 
 /* Draw a node-range face as the prop's real nodes — unlit board, outline,
@@ -372,13 +392,40 @@ function facePartSets(m){
   const fp=m.faceParts;
   if(!fp){ m._partSets=null; return null; }
   m._partSets={ outline:new Set(fp.outline), eyesO:new Set(fp.eyesOpen), eyesC:new Set(fp.eyesClosed),
-    mouths:Object.fromEntries(Object.entries(fp.mouths).map(([k,v])=>[k,new Set(v)])) };
+    mouths:Object.fromEntries(Object.entries(fp.mouths).map(([k,v])=>[k,new Set(v)])),
+    // ordered outline position (FaceOutline then FaceOutline2 ≈ string order),
+    // so gap-time string effects can travel along the outline
+    outlineOrder:new Map(fp.outline.map((nn,i)=>[nn,i])), outlineN:fp.outline.length };
   return m._partSets;
+}
+/* String-effect color for one outline node while its face is between lines —
+   the same traveling/twinkle math as nodeFx, over the outline's own order. */
+function outlineFxColor(ps, oi, ff){
+  const t=S._prevT||0;
+  const beat=t*((S.analysis&&S.analysis.bpm)||120)/60;
+  const n=Math.max(1, ps.outlineN);
+  let b=1;
+  switch(ff.eff){
+    case 'SingleStrand': case 'Marquee':
+      b=0.15+0.85*Math.max(0, Math.cos((oi/n - beat*0.5)*Math.PI*2))**3; break;
+    case 'Twinkle':
+      b=0.3+0.7*(hashF('ol'+oi, Math.floor(t*5))>0.5?1:0.25); break;
+    case 'On': {  // fade ramp from the settings' start/end brightness
+      const gs=k=>{ const mm=new RegExp(k+'=(\\d+)').exec(ff.settings||''); return mm?+mm[1]/100:1; };
+      b=gs('E_TEXTCTRL_Eff_On_Start')+(gs('E_TEXTCTRL_Eff_On_End')-gs('E_TEXTCTRL_Eff_On_Start'))*(ff.prog||0);
+      break; }
+  }
+  const pal=ff.pal&&ff.pal.length?ff.pal:['#FFD27A'];
+  return shade(pal[oi%pal.length], Math.max(0, Math.min(1, b)));
 }
 /* Per-node color for a singing node-range face: outline in the singer's
    color, eyes white (closed set while blinking), the current viseme's mouth
    nodes bright, everything else the unlit board. */
 function faceNodeColor(ps, nn, ff){
+  if(ff.gap){  // between lines: outline runs a string effect, the face stays dark
+    const oi=ps.outlineOrder.get(nn);
+    return oi===undefined ? '#151B3F' : outlineFxColor(ps, oi, ff);
+  }
   if(ps.outline.has(nn)) return ff.col;
   if((ff.blink&&ps.eyesC.size?ps.eyesC:ps.eyesO).has(nn)) return '#E9ECFA';
   const mouth=(ps.mouths[ff.vis]&&ps.mouths[ff.vis].size)?ps.mouths[ff.vis]:ps.mouths.rest;

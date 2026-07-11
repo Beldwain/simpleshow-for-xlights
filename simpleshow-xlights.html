@@ -123,10 +123,91 @@ canvas.viz{width:100%;background:#080D20;border:1px solid var(--line);border-rad
 /* forms */
 textarea{width:100%;min-height:180px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;padding:12px;resize:vertical}
 label.opt{display:flex;gap:10px;align-items:center;margin:8px 0;color:var(--ink-dim)}
-label.opt select,label.opt input[type=range]{accent-color:var(--bulb-gold)}
+label.opt select,label.opt input[type=range],label.opt input[type=checkbox]{accent-color:var(--bulb-gold)}
+label.opt:has(input[type=checkbox]:checked){color:var(--ink)}
 label.opt select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
 .note{font-size:calc(13px*var(--ts));color:var(--ink-dim);border-left:3px solid var(--line);padding:6px 12px;margin-top:10px}
 .note.gold{border-left-color:var(--bulb-gold)}
+/* ---------- layers & moves: pick the stack, light the chips ---------- */
+.eyebrow{font-family:var(--font-mono);font-size:calc(11px*var(--ts));text-transform:uppercase;letter-spacing:.08em;color:var(--ink-dim);margin:16px 0 8px}
+.eyebrow:first-of-type{margin-top:4px}
+.stackRow{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:10px;max-width:680px}
+.stackTile{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;cursor:pointer;color:var(--ink-dim);font:inherit;text-align:left;
+  transition:border-color .15s,background .15s;
+}
+.stackTile:hover{border-color:var(--ink-dim)}
+.stackTile b{display:block;font-family:var(--font-display);font-weight:700;font-size:calc(15px*var(--ts));letter-spacing:.05em;text-transform:uppercase;color:var(--ink);margin-top:9px}
+.stackTile .d{display:block;font-size:calc(12px*var(--ts));line-height:1.35;margin-top:2px}
+.stackArt{display:flex;flex-direction:column-reverse;gap:3px;height:36px;justify-content:flex-start;max-width:110px}
+.stackArt i{display:block;height:9px;border-radius:3px}
+.stackArt .sBed{background:#2A3F8F;opacity:.75}
+.stackArt .sMove{background:var(--bulb-gold);box-shadow:0 0 8px rgba(255,201,77,.45)}
+.stackArt .sSpark{background:none;height:9px;color:#FFF3B0;font-size:9px;letter-spacing:7px;line-height:9px;text-align:center;text-shadow:0 0 6px #FFF3B0}
+.stackTile.active{border-color:var(--bulb-gold);background:rgba(255,201,77,.06);box-shadow:inset 0 0 0 1px var(--bulb-gold)}
+.stackTile.active .d{color:var(--ink-dim)}
+.moveChips{display:flex;gap:10px;flex-wrap:wrap}
+.moveChip{
+  position:relative;display:inline-flex;gap:8px;align-items:center;
+  border:1px solid var(--line);border-radius:22px;padding:7px 16px;cursor:pointer;
+  color:var(--ink-dim);font-family:var(--font-mono);font-size:calc(12.5px*var(--ts));
+  user-select:none;transition:border-color .15s,color .15s,box-shadow .15s;
+}
+.moveChip input{position:absolute;opacity:0;pointer-events:none}
+.moveChip i{font-style:normal;font-size:calc(13px*var(--ts))}
+.moveChip:hover{border-color:var(--ink-dim)}
+.moveChip:has(input:checked){
+  border-color:var(--bulb-gold);color:var(--bulb-gold);background:rgba(255,201,77,.08);
+  box-shadow:0 0 10px rgba(255,201,77,.22),inset 0 0 0 1px var(--bulb-gold);
+}
+.moveChip:has(input:checked) i{text-shadow:0 0 8px currentColor}
+.moveChip:has(input:focus-visible){outline:2px solid var(--bulb-gold);outline-offset:2px}
+.featGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:10px}
+.featTile{
+  position:relative;display:block;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:10px;padding:12px 62px 12px 14px;cursor:pointer;color:var(--ink-dim);
+  transition:border-color .15s,background .15s;
+}
+.featTile:hover{border-color:var(--ink-dim)}
+.featTile input{position:absolute;opacity:0;pointer-events:none}
+.featTile b{display:block;font-family:var(--font-display);font-weight:700;font-size:calc(14.5px*var(--ts));letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
+.featTile .d{display:block;font-size:calc(12.5px*var(--ts));line-height:1.4;margin-top:2px}
+.featSwitch{position:absolute;top:14px;right:14px;width:36px;height:20px;border-radius:12px;border:1px solid var(--line);background:var(--midnight);transition:background .15s,border-color .15s}
+.featSwitch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--ink-dim);transition:left .15s,background .15s}
+.featTile:has(input:checked){border-color:var(--bulb-gold);background:rgba(255,201,77,.05)}
+.featTile:has(input:checked) .featSwitch{background:rgba(255,201,77,.25);border-color:var(--bulb-gold)}
+.featTile:has(input:checked) .featSwitch::after{left:18px;background:var(--bulb-gold);box-shadow:0 0 8px rgba(255,201,77,.7)}
+.featTile:has(input:focus-visible){outline:2px solid var(--bulb-gold);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){
+  .stackTile,.moveChip,.featTile,.featSwitch,.featSwitch::after{transition:none}
+}
+@media (max-width:640px){ .stackRow{grid-template-columns:1fr} .segRow{grid-template-columns:1fr} }
+/* segmented choice (e.g. lyrics yes/no) — same tile + gold-glow language */
+.segRow{display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:10px;max-width:520px;margin-bottom:14px}
+.segBtn{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;cursor:pointer;color:var(--ink-dim);font:inherit;text-align:left;
+  transition:border-color .15s,background .15s;
+}
+.segBtn:hover{border-color:var(--ink-dim)}
+.segBtn b{display:block;font-family:var(--font-display);font-weight:700;font-size:calc(15px*var(--ts));letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
+.segBtn .d{display:block;font-size:calc(12px*var(--ts));line-height:1.35;margin-top:3px}
+.segBtn.active{border-color:var(--bulb-gold);background:rgba(255,201,77,.06);box-shadow:inset 0 0 0 1px var(--bulb-gold)}
+.segBtn.active b{color:var(--bulb-gold);text-shadow:0 0 8px rgba(255,201,77,.4)}
+@media (prefers-reduced-motion:reduce){ .segBtn{transition:none} }
+/* shader gallery: live preview tile + Screens/Props target chips */
+.shaderGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:10px}
+.shaderTile{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px;transition:border-color .15s,box-shadow .15s}
+.shaderTile.on{border-color:var(--bulb-gold);box-shadow:inset 0 0 0 1px rgba(255,201,77,.35)}
+.shaderTile canvas{width:100%;height:70px;border-radius:6px;display:block;background:#05060f}
+.shaderTile .nm{display:flex;justify-content:space-between;align-items:center;gap:4px;font-family:var(--font-mono);font-size:calc(11.5px*var(--ts));color:var(--ink);margin:7px 2px}
+.shaderTile .nm .pal{color:var(--ink-dim)}
+.tgtRow{display:flex;gap:6px}
+.tgtChip{flex:1;border:1px solid var(--line);border-radius:14px;padding:4px 0;text-align:center;cursor:pointer;user-select:none;font-family:var(--font-mono);font-size:calc(10.5px*var(--ts));letter-spacing:.04em;text-transform:uppercase;color:var(--ink-dim);transition:border-color .15s,color .15s,background .15s,box-shadow .15s}
+.tgtChip:hover{border-color:var(--ink-dim)}
+.tgtChip.on{border-color:var(--bulb-gold);color:var(--bulb-gold);background:rgba(255,201,77,.08);box-shadow:0 0 8px rgba(255,201,77,.2)}
+@media (prefers-reduced-motion:reduce){ .shaderTile,.tgtChip{transition:none} }
 .timeline{font-family:var(--font-mono);font-size:calc(12px*var(--ts))}
 .seclabel{display:inline-block;padding:1px 8px;border-radius:4px;margin:2px 4px 2px 0}
 .sec-quiet{background:#1E2A5E}.sec-verse{background:#2A3F8F}.sec-build{background:#8F6A2A}.sec-chorus{background:#8F2A3A}
@@ -173,6 +254,11 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
   </div>
   <div id="layoutResults" class="hidden">
     <div class="stats" id="layoutStats"></div>
+    <div class="note gold hidden" id="smallDisplayNote">We detected fewer than 5 groups and fewer than 20 props — would you like to focus on <b>direct-to-prop sync lights</b> with more string effects? Effects land on each prop instead of groups, chases and beat pulses take the lead, and props' quiet moments fill with spinning / pulsing shader graphics.
+      <span class="row" style="margin-top:6px;gap:8px">
+        <button class="btn small" onclick="acceptPropFocus()">Yes — turn on Prop focus</button>
+        <button class="btn small ghost" onclick="document.getElementById('smallDisplayNote').classList.add('hidden')">No thanks</button>
+      </span></div>
     <div class="card">
       <h3>House preview</h3>
       <canvas class="viz" id="houseCanvas" height="340"></canvas>
@@ -194,6 +280,11 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
 <section class="panel" id="panel1">
   <h2>2 · Add the song</h2>
   <p class="sub">The audio is analyzed right here in your browser: tempo, beat grid, bass hits, and song sections (verse / build / chorus) that drive the sequencing.</p>
+  <p class="eyebrow" style="margin-bottom:6px">Does this song have singing?</p>
+  <div class="segRow" role="group" aria-label="Does this song have lyrics?">
+    <button type="button" id="lyToggleYes" class="segBtn active" onclick="setHasLyrics(true)"><b>🎤 Yes — it has lyrics</b><span class="d">Add lyrics next and cast singing faces</span></button>
+    <button type="button" id="lyToggleNo" class="segBtn" onclick="setHasLyrics(false)"><b>🎼 Instrumental</b><span class="d">No lyrics — skip straight to generating the show</span></button>
+  </div>
   <div class="drop" id="dropAudio" tabindex="0">
     <strong>Drop an MP3 / WAV / M4A here</strong><br>or click to browse
     <input type="file" id="fileAudio" accept="audio/*">
@@ -207,7 +298,7 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
       <canvas class="viz" id="waveCanvas" height="150"></canvas>
       <p class="timeline" id="sectionLabels" style="margin-top:8px"></p>
     </div>
-    <button class="btn" onclick="finishStep(1)">Next: lyrics &amp; faces</button>
+    <button class="btn" id="audioNextBtn" onclick="finishStep(1)">Next: lyrics &amp; faces</button>
   </div>
 </section>
 
@@ -247,7 +338,7 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
 <!-- STEP 4: GENERATE -->
 <section class="panel" id="panel3">
   <h2>4 · Generate the show</h2>
-  <p class="sub">Pick a style and intensity. SimpleShow choreographs the display the way a sequencer does: model groups carry sweeps, chases and call-and-response; only a few prop families are loud at once so the hits land; special props stay dark until the ramps. Don't like this show? Roll a new seed.</p>
+  <p class="sub">Pick a look and how energetic the show should be. SimpleShow arranges the whole display like a real light-show designer: props take turns sweeping, chasing, and answering each other, only a few are loud at once so the big moments land, and standout props stay dark until the music builds. Want a different take on the same song? Hit <b>New show</b> for a fresh arrangement.</p>
   <div class="card">
     <h3>Show style</h3>
     <label class="opt">Palette
@@ -292,39 +383,68 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
         <option value="gentle">Gentle — calm, roomy, no glitter</option>
         <option value="classic" selected>Classic — the balanced default</option>
         <option value="festive">Festive — livelier, extra sparkle</option>
-        <option value="party">Party — everything louder, hero barely rests</option>
+        <option value="party">Party — everything louder, the lead prop barely rests</option>
       </select>
     </label>
     <label class="opt">Intensity <input type="range" id="intensity" min="1" max="3" value="2"> <span id="intensityLabel">Balanced</span></label>
-    <label class="opt"><input type="checkbox" id="useShockwaves" checked> Shockwave + strobe accents on big bass hits</label>
-    <label class="opt"><input type="checkbox" id="useCanvasMoment" checked> One <b>whole-display moment</b> — once per show the entire display becomes a single graphic (a house-wide shader, slow rotation, or color fade)</label>
-    <label class="opt"><input type="checkbox" id="useVU" checked> VU-meter style effects on matrices during choruses</label>
-    <label class="opt">Show seed <input id="seedBox" class="timeline" style="width:120px;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px" placeholder="random"> <span class="timeline" style="color:var(--ink-dim)">same seed = same show</span></label>
+    <p class="eyebrow">Extra touches</p>
+    <div class="featGrid">
+      <label class="featTile"><input type="checkbox" id="useShockwaves" checked><span class="featSwitch" aria-hidden="true"></span>
+        <b>Bass-hit accents</b><span class="d">shockwave rings and strobes fire on the biggest bass hits</span></label>
+      <label class="featTile"><input type="checkbox" id="useCanvasMoment" checked><span class="featSwitch" aria-hidden="true"></span>
+        <b>Whole-display moments</b><span class="d">a few short bursts (10–15s, 3–6 a show) where the entire display becomes one graphic — a house-wide shader, slow spin, or color sweep</span></label>
+      <label class="featTile"><input type="checkbox" id="useVU" checked><span class="featSwitch" aria-hidden="true"></span>
+        <b>Matrix VU meters</b><span class="d">matrices pulse like a music meter during the choruses</span></label>
+    </div>
+    <label class="opt" style="margin-top:14px">Show recipe <input id="seedBox" class="timeline" style="width:120px;background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 8px" placeholder="random"> <span class="timeline" style="color:var(--ink-dim)">reuse this code to get the exact same show again</span></label>
   </div>
   <div class="card">
     <h3>Layers &amp; moves</h3>
-    <label class="opt">Layering
-      <select id="layerDepth">
-        <option value="simple">Simple — one effect per element</option>
-        <option value="layered" selected>Layered — dim color bed under the moves (pro look)</option>
-        <option value="rich">Rich — bed + moves + sparkle overlay on choruses</option>
-      </select>
-    </label>
-    <div class="row" style="gap:14px;flex-wrap:wrap">
-      <label class="opt" style="margin:0"><input type="checkbox" id="mvSweep" checked> Spatial sweeps</label>
-      <label class="opt" style="margin:0"><input type="checkbox" id="mvChase" checked> Chases</label>
-      <label class="opt" style="margin:0"><input type="checkbox" id="mvPulse" checked> Beat pulses</label>
-      <label class="opt" style="margin:0"><input type="checkbox" id="mvCall" checked> Call &amp; response</label>
-      <label class="opt" style="margin:0"><input type="checkbox" id="mvFocus" checked> Focus rotation</label>
+    <p class="eyebrow">How deep the effects stack</p>
+    <div class="stackRow" role="group" aria-label="Layering depth">
+      <button type="button" class="stackTile" data-ld="simple" onclick="pickLayerDepth('simple')">
+        <span class="stackArt"><i class="sMove"></i></span>
+        <b>Simple</b><span class="d">one effect per element — clean and easy to edit</span>
+      </button>
+      <button type="button" class="stackTile" data-ld="layered" onclick="pickLayerDepth('layered')">
+        <span class="stackArt"><i class="sBed"></i><i class="sMove"></i></span>
+        <b>Layered</b><span class="d">a dim color bed glows under the moves — the pro look</span>
+      </button>
+      <button type="button" class="stackTile" data-ld="rich" onclick="pickLayerDepth('rich')">
+        <span class="stackArt"><i class="sBed"></i><i class="sMove"></i><i class="sSpark">✦ ✦ ✦</i></span>
+        <b>Rich</b><span class="d">bed + moves + a sparkle overlay on the choruses</span>
+      </button>
     </div>
-    <label class="opt"><input type="checkbox" id="useUnison" checked> Unison hit on every build &amp; chorus start</label>
-    <label class="opt"><input type="checkbox" id="megaSpotlight" checked> <b>Mega tree spotlight</b> — the tree runs its own layered program: spirals trading with tendrils in verses, hero textures that rotate every chorus phrase (Butterfly / Curtain / fast Spirals / Tendril / bottom-up wipe / Pinwheel, with sparkle), Shockwave rings on every downbeat through builds, and bass-hit rings above it all</label>
-    <p class="note">Layered mode is how the pro sequences read: each active prop family keeps a dim wash of color on its bottom layer while chases, pulses and sweeps play on top (blended with <b>Max</b>, both here and in the exported .xsq). Untick a move to take it out of the vocabulary for this show — then reroll the seed.</p>
+    <select id="layerDepth" class="hidden" aria-hidden="true" tabindex="-1">
+      <option value="simple">Simple — one effect per element</option>
+      <option value="layered" selected>Layered — dim color bed under the moves (pro look)</option>
+      <option value="rich">Rich — bed + moves + sparkle overlay on choruses</option>
+    </select>
+    <p class="eyebrow">Dance moves — the ones glowing gold are in this show; switch any off for a different feel</p>
+    <div class="moveChips">
+      <label class="moveChip"><input type="checkbox" id="mvSweep" checked><i>⇆</i>Spatial sweeps</label>
+      <label class="moveChip"><input type="checkbox" id="mvChase" checked><i>➤➤</i>Chases</label>
+      <label class="moveChip"><input type="checkbox" id="mvPulse" checked><i>◉</i>Beat pulses</label>
+      <label class="moveChip"><input type="checkbox" id="mvCall" checked><i>⇄</i>Call &amp; response</label>
+      <label class="moveChip"><input type="checkbox" id="mvFocus" checked><i>✦</i>Focus rotation</label>
+    </div>
+    <p class="eyebrow">Showstoppers</p>
+    <div class="featGrid">
+      <label class="featTile"><input type="checkbox" id="useUnison" checked><span class="featSwitch" aria-hidden="true"></span>
+        <b>Unison hits</b><span class="d">the whole display flashes as one on every build &amp; chorus start</span></label>
+      <label class="featTile"><input type="checkbox" id="megaSpotlight" checked><span class="featSwitch" aria-hidden="true"></span>
+        <b>Mega tree spotlight</b><span class="d">the tree gets its own featured routine — spirals and tendrils trading off in the verses, a fresh pattern each chorus, and rings on the strong beats</span></label>
+      <label class="featTile"><input type="checkbox" id="propFocus"><span class="featSwitch" aria-hidden="true"></span>
+        <b>Prop focus</b><span class="d">for smaller displays: effects land directly on each prop (not on groups), chases and beat pulses take the lead, and quiet props fill with spinning / pulsing shader graphics</span></label>
+      <label class="featTile"><input type="checkbox" id="faceOutlineFx"><span class="featSwitch" aria-hidden="true"></span>
+        <b>Face outlines join the show</b><span class="d">between their sung lines each face's outline runs chases, twinkles and fades in the show's colors — mouths and eyes stay dark until its line starts</span></label>
+    </div>
+    <p class="note">Layered mode is what gives pro shows their depth: each active prop keeps a dim wash of color underneath while the moves play on top — the same look here in the preview and in the file you export to xLights.</p>
   </div>
-  <div class="card" id="screensCard" style="display:none"></div>
+  <div id="screensCard" style="display:none"></div>
   <div class="row">
     <button class="btn" id="genBtn" onclick="generateShow()">Generate sequence</button>
-    <button class="btn ghost" onclick="rerollSeed()">🎲 New show (new seed)</button>
+    <button class="btn ghost" onclick="rerollSeed()">🎲 New show</button>
   </div>
   <div id="genResults" class="hidden">
     <div class="stats" id="genStats"></div>
@@ -391,6 +511,7 @@ const S = {
   lyrics: null,         // {lines:[{text, words:[{text,start,end,vis,phones:[{v,start,end}]}], start, end, faces[]}]}
   sequence: null,       // generated effect plan + xsq string
   audioURL: null,
+  hasLyrics: true,      // set before loading music; false = instrumental (skip the lyrics step)
   stepDone: [false,false,false,false,false],
 };
 const ROLES = ["Singing Face","Mega Tree","Mini Tree","Arch","Roof/Outline","Icicles","Star/Topper","Matrix/Screen","Spinner/Wreath","Candy Cane","Flood","Forest","Special/Accent","Generic Prop","Skip"];
@@ -505,6 +626,20 @@ function parseLayout(xmlText, fname){
   nodes.filter(n=>(n.getAttribute('DisplayAs')||'')==='ModelGroup').forEach(addGroup);
   runClassification();
   renderLayoutResults(fname);
+  // small display? offer prop-focused generation (here, not in
+  // renderLayoutResults — role edits re-render and would undo a dismissal)
+  const nonSkip=S.models.filter(m=>m.role!=='Skip').length;
+  const pfBox=document.getElementById('propFocus');
+  document.getElementById('smallDisplayNote').classList.toggle('hidden',
+    !(S.groups.length<5 && nonSkip<20) || (pfBox&&pfBox.checked));
+}
+function acceptPropFocus(){
+  const pfBox=document.getElementById('propFocus');
+  if(pfBox) pfBox.checked=true;
+  saveSession();
+  document.getElementById('smallDisplayNote').innerHTML=
+    '<b>Prop focus is on.</b> Effects will land directly on each prop, with more chases, beat pulses, and auto shader fills — you can toggle it any time in step 4 under Layers &amp; moves.';
+  if(S.sequence) generateShow();
 }
 
 function runClassification(){
@@ -616,6 +751,7 @@ wireDrop(document.getElementById('dropAudio'), document.getElementById('fileAudi
   }
   S.audio = { name:f.name, duration:buf.duration, sampleRate:buf.sampleRate, mono };
   loadLrcTimes();   // synced line timing saved for this song earlier
+  if(S.hasLyrics===false) blankLyrics();   // instrumental: never carry a prior song's lyrics in
   const gat=guessArtistTitle(f.name);
   const aEl=document.getElementById('lrcArtist'), tEl=document.getElementById('lrcTitle');
   if(aEl && !aEl.value) aEl.value=gat.artist;
@@ -1082,8 +1218,45 @@ document.getElementById('nav2').addEventListener('click', ()=>{ if(S.analysis) b
   if(S.analysis) buildLyrics();
   if(typeof saveSession==='function') saveSession();
 }));
+/* ---- lyrics yes/no (set before loading music) ---- */
+function blankLyrics(){
+  const box=document.getElementById('lyricsBox'); if(box) box.value='';
+  S.lyrics=null; S.lyricDoc=null; S.lrcTimes=null;
+}
+function syncLyricsToggle(){
+  const v=S.hasLyrics!==false;
+  const yes=document.getElementById('lyToggleYes'), no=document.getElementById('lyToggleNo');
+  if(yes) yes.classList.toggle('active', v);
+  if(no) no.classList.toggle('active', !v);
+  const nb=document.getElementById('audioNextBtn'); if(nb) nb.textContent = v?'Next: lyrics & faces':'Next: generate the show';
+  const n2=document.getElementById('nav2'); if(n2) n2.style.display = v?'':'none';   // hide the lyrics step for instrumentals
+}
+function setHasLyrics(v){
+  S.hasLyrics=!!v;
+  if(!v) blankLyrics();                 // instrumental: drop any lyrics set for a previous song
+  syncLyricsToggle();
+  if(S.analysis && v) buildLyrics();     // re-spread if we're back to a lyric show
+  if(typeof renderScreensCard==='function') renderScreensCard();   // karaoke option gating
+  if(typeof saveSession==='function') saveSession();
+}
 const _origFinish = finishStep;
-finishStep = function(i){ if(i===1) buildLyrics(); if(i===2) buildLyrics(); _origFinish(i); };
+finishStep = function(i){
+  if(i===1){
+    if(S.hasLyrics===false){
+      // instrumental: skip the lyrics & faces step entirely
+      buildLyrics();                       // clears S.lyrics safely (box is empty)
+      S.stepDone[1]=true; document.getElementById('nav1').classList.add('done');
+      S.stepDone[2]=true;
+      const n3=document.getElementById('nav3'); if(n3) n3.disabled=false;
+      go(3);
+      if(typeof saveSession==='function') saveSession();
+      return;
+    }
+    buildLyrics();
+  }
+  if(i===2) buildLyrics();
+  _origFinish(i);
+};
 
 /* ================= STEP 4: show generation ================= */
 const PALETTES = {
@@ -1218,6 +1391,16 @@ function recipesFor(role, kind, opts){
   return (R[role]||R['Generic Prop'])[kind]||[];
 }
 
+/* the layering tiles drive the (hidden) layerDepth select, so tests and
+   session restore keep talking to one element */
+function pickLayerDepth(v){
+  document.getElementById('layerDepth').value=v;
+  syncLayerTiles();
+}
+function syncLayerTiles(){
+  const v=document.getElementById('layerDepth').value;
+  document.querySelectorAll('.stackTile').forEach(b=>b.classList.toggle('active', b.dataset.ld===v));
+}
 function rerollSeed(){
   document.getElementById('seedBox').value=newSeed();
   generateShow();
@@ -1235,6 +1418,8 @@ function generateShow(){
                useUnison:g('useUnison')?g('useUnison').checked:true,
                megaSpotlight:g('megaSpotlight')?g('megaSpotlight').checked:true,
                mood:g('moodSel')?g('moodSel').value:'classic',
+               propFocus:g('propFocus')?g('propFocus').checked:false,
+               faceOutline:g('faceOutlineFx')?g('faceOutlineFx').checked:false,
                moves:{ sweep:g('mvSweep')?g('mvSweep').checked:true,
                        chase:g('mvChase')?g('mvChase').checked:true,
                        pulse:g('mvPulse')?g('mvPulse').checked:true,
@@ -1251,7 +1436,7 @@ function generateShow(){
   S.models.forEach(m=>{ m._screenTaken = m.role==='Matrix/Screen'
     && typeof screenModeOf==='function' && screenModeOf(m).mode!=='choreo'; });
   // choreography-first: families (groups when available) → moves → plan
-  const fam=buildFamilies(S.models, S.groups||[]);
+  const fam=buildFamilies(S.models, S.groups||[], opts);
   const phrases=subdividePhrases(A, intensity);
   const placements=choreograph(A, fam, {A, P, opts, intensity, phrases}, rng);
   const plan=compileChoreo(placements, fam, S.models, ms);
@@ -1279,10 +1464,23 @@ function generateShow(){
       plan[fn].push([1,'Faces','E_CHECKBOX_Faces_Outline=1,E_CHOICE_Faces_Eyes=Auto'+fdef+',E_CHOICE_Faces_TimingTrack='+track+',T_TEXTCTRL_Fadein=.5,T_TEXTCTRL_Fadeout=.5',palForModel(fm,[col,'#FFFFFF',P.accent]),ms(l.start),ms(l.end)]);
     });
   });
+  // opt-in: face outlines run string effects between their own sung lines —
+  // rows live under virtual `<face>/FaceOutline` keys the exporter turns into
+  // SubModelEffectLayers (simpleshow-choreo.js)
+  if(opts.faceOutline && typeof faceOutlinePlacements==='function'){
+    const fo=faceOutlinePlacements(faces, A, phrases, P, seed, ms);
+    Object.entries(fo).forEach(([k,rows])=>{ plan[k]=rows; });
+  }
   // screens: shader graphics and/or karaoke words replace generic effects
   if(typeof screenPlacements==='function'){
     const sp=screenPlacements(A,P,ms);
     Object.entries(sp).forEach(([n,rows])=>{ (plan[n]=plan[n]||[]).push(...rows); });
+  }
+  // prop focus: props' idle gaps fill with spinning/pulsing shaders (auto) —
+  // before the bass accents, so brief hits don't fragment the gaps
+  if(opts.propFocus && typeof propShaderPlacements==='function'){
+    const psp=propShaderPlacements(plan, A, ms);
+    Object.entries(psp).forEach(([n,rows])=>plan[n].push(...rows));
   }
   // bass hit accents: shockwave on mega tree + strobe on outline
   if(opts.useShock){
@@ -1293,16 +1491,18 @@ function generateShow(){
       outl.forEach(o=>plan[o.name].push([ACCENT_LAYER,'Strobe','E_SLIDER_Number_Strobes=10',palForModel(o,[P.accent]),ms(t),ms(t+0.4)]));
     });
   }
-  // whole-display moment: once per show the display becomes one canvas —
-  // everything else in the window is cleared (faces keep singing, screens
-  // keep their graphics) and one Per-Preview effect rides the All group
-  S._canvasMoment=null;
-  if(typeof canvasMoment==='function' && fam.allGroup){
-    const cm=canvasMoment(A, P, (seed%9973)/9973, fam.allGroup.name,
+  // whole-display moments: a few short windows (10-15s) where the whole house
+  // becomes one graphic (the "whole-display feature" the user wants — brief,
+  // 3-6 per show, not a minute-long fade). Everything in the window is cleared
+  // (faces keep singing, screens keep their graphics) and one Per-Preview
+  // effect rides the All group.
+  S._canvasMoments=[];
+  if(typeof canvasMoments==='function' && fam.allGroup){
+    const moments=canvasMoments(A, P, (seed%9973)/9973, fam.allGroup.name,
       {canvasMoment:g('useCanvasMoment')?g('useCanvasMoment').checked:true});
-    if(cm){
+    const keep=new Set(S.models.filter(m=>m.role==='Singing Face'||m._screenTaken).map(m=>m.name));
+    moments.forEach(cm=>{
       const s0=ms(cm.start), e0=ms(cm.end);
-      const keep=new Set(S.models.filter(m=>m.role==='Singing Face'||m._screenTaken).map(m=>m.name));
       Object.keys(plan).forEach(n=>{
         if(keep.has(n)) return;
         plan[n]=plan[n].flatMap(r=> (r[5]<=s0||r[4]>=e0) ? [r]
@@ -1310,9 +1510,11 @@ function generateShow(){
               ...(r[5]>e0?[[r[0],r[1],r[2],r[3],e0,r[5]]]:[]) ]);
       });
       (plan[cm.el]=plan[cm.el]||[]).push([1,cm.effect,cm.settings,cm.pal,s0,e0]);
-      S._canvasMoment=cm;
-    }
+      S._canvasMoments.push(cm);
+    });
   }
+  // back-compat: first moment (or null) for older lookups
+  S._canvasMoment=S._canvasMoments[0]||null;
   // coverage: which plan elements can light each model (for the preview)
   const coverage={};
   S.models.forEach(m=>{ if(m.role!=='Skip') coverage[m.name]=[{el:m.name,ord:0,n:1}]; });
@@ -1331,7 +1533,7 @@ function renderGenResults(){
   const plan=S.sequence.plan;
   let fx=0; Object.values(plan).forEach(a=>fx+=a.length);
   const modelSet=new Set(S.models.map(m=>m.name));
-  const groupsSeq=Object.keys(plan).filter(k=>!modelSet.has(k)&&plan[k].length).length;
+  const groupsSeq=Object.keys(plan).filter(k=>!modelSet.has(k)&&!k.endsWith(FACE_OUTLINE_KEY)&&plan[k].length).length;
   // peak simultaneous elements — the energy-budget number, sampled every 500ms
   let peak=0;
   for(let t=0;t<S.audio.duration*1000;t+=500){
@@ -1423,6 +1625,9 @@ function buildXSQ(){
     body.push('  </Element>');
   });
   modelNames.forEach(n=>{
+    // `<face>/FaceOutline` keys are virtual — their rows nest inside the
+    // face model's own element below, never as a top-level element
+    if(n.endsWith(FACE_OUTLINE_KEY)) return;
     const effs=plan[n];
     const layers=Math.max(1, ...effs.map(e=>e[0]+1));
     body.push(`  <Element type="model" name="${xesc(n)}">`);
@@ -1437,6 +1642,21 @@ function buildXSQ(){
         body.push(`    <Effect ref="${effRef(name,settings)}" name="${xesc(name)}" palette="${palRef(pal)}" protected="0" startTime="${msStr(s)}" endTime="${msStr(en)}"/>`);
       });
       body.push('   </EffectLayer>');
+    }
+    // face outline string effects land on the outline submodels — the same
+    // nested SubModelEffectLayer structure the pro sequences use
+    const foRows=plan[n+FACE_OUTLINE_KEY];
+    if(foRows && foRows.length){
+      const fm=S.models.find(m=>m.name===n);
+      (fm&&typeof outlineSubmodelsFor==='function'?outlineSubmodelsFor(fm):[]).forEach(smName=>{
+        body.push(`   <SubModelEffectLayer name="${xesc(smName)}">`);
+        [...foRows].sort((a,b)=>a[4]-b[4]).forEach(e=>{
+          const [,name,settings,pal,s,en]=e;
+          if(en<=s) return;
+          body.push(`    <Effect ref="${effRef(name,settings)}" name="${xesc(name)}" palette="${palRef(pal)}" protected="0" startTime="${msStr(s)}" endTime="${msStr(en)}"/>`);
+        });
+        body.push('   </SubModelEffectLayer>');
+      });
     }
     body.push('  </Element>');
   });
@@ -1691,6 +1911,7 @@ function drawPreviewFrame(t){
     w=curLine.words.find(x=>t>=x.start&&t<x.end);
     ph=w&&w.phones.find(p=>t>=p.start&&t<p.end);
   }
+  const shFrames={};   // per-frame shader render memo (prop-focus fills)
   S.models.forEach((m,i)=>{
     if(m.role==='Skip') return;
     if(m.role==='Singing Face'){
@@ -1701,6 +1922,16 @@ function drawPreviewFrame(t){
       // node-range faces (singing bulbs, coro faces) light their own pixels
       // in the house render — outline, blinking eyes, the current mouth
       if(m.faceParts && m.customNodes){
+        // between lines an opted-in face's outline runs its string effect
+        // (mouth and eyes stay dark) — the gap branch in faceNodeColor
+        let gapRow=null;
+        if(!isSinging && S.sequence && S.sequence.plan[m.name+FACE_OUTLINE_KEY])
+          gapRow=S.sequence.plan[m.name+FACE_OUTLINE_KEY].find(r=>tMs>=r[4]&&tMs<r[5]);
+        if(gapRow){
+          S._faceFx[m.name]={ gap:true, eff:gapRow[1], settings:gapRow[2], pal:gapRow[3],
+                              prog:(tMs-gapRow[4])/Math.max(1,gapRow[5]-gapRow[4]) };
+          return;
+        }
         const phase=hashF(m.name,7)*3.8;
         S._faceFx[m.name]={ vis:isSinging?(ph?ph.v:'MBP'):'rest',
                             col:isSinging?lit[m.name]:'#3A4270',
@@ -1713,6 +1944,19 @@ function drawPreviewFrame(t){
       const img=screenPreviewFrame(m,t,P);
       if(img){ S._screenFx[m.name]=img; lit[m.name]=P.accent; return; }
     }
+    // prop-focus shader fills: any prop with an active Shader row samples the
+    // real shader frame per node, exactly like the screens do (frames are
+    // memoized per shader so several props sharing one cost one render)
+    if(S.sequence && typeof shaderByFile==='function'){
+      const srow=(S.sequence.plan[m.name]||[]).find(r=>r[1]==='Shader'&&tMs>=r[4]&&tMs<r[5]);
+      if(srow){
+        const sh=shaderByFile(srow[2]);
+        if(sh){
+          const img=shFrames[sh.id]??(shFrames[sh.id]=renderShaderFrame(sh,t,P));
+          if(img){ S._screenFx[m.name]=img; lit[m.name]=P.accent; return; }
+        }
+      }
+    }
     const pc=planColorAt(m,tMs,t,pulse);          // real plan drives the preview
     if(pc){ lit[m.name]=pc.col||'#10152E'; return; }
     // no plan generated yet: fall back to section-palette pulses
@@ -1721,8 +1965,8 @@ function drawPreviewFrame(t){
     lit[m.name]=shade(base, kind==='quiet'?0.35:0.5+0.5*pulse);
   });
   // whole-display moment: one shared frame sampled house-wide on every prop
-  const cmv=S._canvasMoment;
-  if(cmv && t>=cmv.start && t<cmv.end && typeof canvasMomentImage==='function'){
+  const cmv=(S._canvasMoments||[]).find(cm=>t>=cm.start && t<cm.end);
+  if(cmv && typeof canvasMomentImage==='function'){
     const img=canvasMomentImage(cmv,t,P);
     if(img) S.models.forEach(m=>{ if(m.role!=='Skip'&&m.role!=='Singing Face'){ S._screenFx[m.name]=img; lit[m.name]=P.accent; } });
   }
@@ -1978,6 +2222,8 @@ function applyTextScale(v){
   applyTextScale(saved);
 })();
 if(typeof restoreSession==='function') restoreSession();
+if(typeof syncLyricsToggle==='function') syncLyricsToggle();   // mirror restored lyrics yes/no
+syncLayerTiles();   // the layering tiles mirror the restored select value
 window.addEventListener('resize', ()=>{
   if(!S.models.length) return;
   drawHouse();

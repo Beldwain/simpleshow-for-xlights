@@ -1,7 +1,7 @@
 /* SimpleShow — screens: original ISF shaders + on-screen karaoke.
    Matrices/screens can run any of ~20 original shaders (exported as ISF .fs
    files xLights' Shader effect loads) and/or karaoke text built from the
-   synced lyrics — scrolling, bouncing ball, highlighted, highlighted with
+   synced lyrics — scrolling, highlighted, highlighted with
    outline. The in-app preview runs the SAME GLSL through WebGL and the same
    text layout on a 2D canvas, so what you see is what xLights renders.
    Uses globals from the main file at runtime: S, PALETTES, esc, hashF. */
@@ -69,7 +69,7 @@ void main(){
   }
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'fireworks', name:'Fireworks Bloom', tags:['hot'], fixed:true, inputs:[{name:'rate',def:0.5},{name:'trail',def:0.5}], glsl:`
+{id:'fireworks', motion:'pulse', name:'Fireworks Bloom', tags:['hot'], fixed:true, inputs:[{name:'rate',def:0.5},{name:'trail',def:0.5}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   vec3 col=vec3(.01,.01,.04)*(1.-uv.y*.5);
@@ -90,7 +90,7 @@ void main(){
   }
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'candytwist', name:'Candy Twist', tags:['mid','hot'], inputs:[{name:'hue1',def:0.0},{name:'hue2',def:0.93},{name:'speed',def:0.5}], glsl:`
+{id:'candytwist', motion:'spin', name:'Candy Twist', tags:['mid','hot'], inputs:[{name:'hue1',def:0.0},{name:'hue2',def:0.93},{name:'speed',def:0.5}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.3+speed*.7);
@@ -101,7 +101,7 @@ void main(){
   col*= .75+.35*smoothstep(.0,.5,r) - r*.35;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'kaleido', name:'Kaleido Bloom', tags:['mid'], inputs:[{name:'hue1',def:0.55},{name:'hue2',def:0.8},{name:'speed',def:0.4}], glsl:`
+{id:'kaleido', motion:'spin', name:'Kaleido Bloom', tags:['mid'], inputs:[{name:'hue1',def:0.55},{name:'hue2',def:0.8},{name:'speed',def:0.4}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.2+speed*.5);
@@ -130,7 +130,7 @@ void main(){
   col+=vec3(1.)*smoothstep(3.2,5.,f)*.35;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'starwarp', name:'Starfield Warp', tags:['hot'], inputs:[{name:'hue1',def:0.6},{name:'speed',def:0.5}], glsl:`
+{id:'starwarp', motion:'spin', name:'Starfield Warp', tags:['hot'], inputs:[{name:'hue1',def:0.6},{name:'speed',def:0.5}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.4+speed*1.2);
@@ -163,7 +163,7 @@ void main(){
   }
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'ripple', name:'Ripple Pond', tags:['calm'], inputs:[{name:'hue1',def:0.5},{name:'hue2',def:0.62},{name:'speed',def:0.4}], glsl:`
+{id:'ripple', motion:'pulse', name:'Ripple Pond', tags:['calm'], inputs:[{name:'hue1',def:0.5},{name:'hue2',def:0.62},{name:'speed',def:0.4}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.4+speed*.8);
@@ -180,7 +180,7 @@ void main(){
   col+=vec3(1.)*smoothstep(.85,1.,v)*.3;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'rangoli', name:'Rangoli Spin', tags:['mid'], inputs:[{name:'hue1',def:0.08},{name:'hue2',def:0.9},{name:'speed',def:0.3}], glsl:`
+{id:'rangoli', motion:'spin', name:'Rangoli Spin', tags:['mid'], inputs:[{name:'hue1',def:0.08},{name:'hue2',def:0.9},{name:'speed',def:0.3}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.15+speed*.35);
@@ -193,7 +193,7 @@ void main(){
   col*=smoothstep(.62,.45,r)+.15;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'holi', name:'Holi Splash', tags:['hot'], fixed:true, inputs:[{name:'rate',def:0.5}], glsl:`
+{id:'holi', motion:'pulse', name:'Holi Splash', tags:['hot'], fixed:true, inputs:[{name:'rate',def:0.5}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.4+rate*.6);
@@ -221,9 +221,10 @@ void main(){
   col*=1.-.6*length(uv-.5);
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'heartpulse', name:'Heart Pulse', tags:['mid'], inputs:[{name:'hue1',def:0.98},{name:'hue2',def:0.9},{name:'speed',def:0.5}], glsl:`
+{id:'heartpulse', motion:'pulse', name:'Heart Pulse', tags:['mid'], inputs:[{name:'hue1',def:0.98},{name:'hue2',def:0.9},{name:'speed',def:0.5}], glsl:`
 void main(){
   vec2 uv=(gl_FragCoord.xy/RENDERSIZE-.5)*2.2; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
+  uv.y=-uv.y;   // gl_FragCoord is bottom-origin; flip so the heart sits upright (cusp down)
   float t=TIME*(.5+speed*.8);
   float beat=1.+.14*exp(-fract(t)*4.)*sin(fract(t)*30.);
   vec2 p=uv/beat; p.y-=.1;
@@ -234,7 +235,7 @@ void main(){
   col+=hsv(hue1,.6,1.)*exp(-d*d*30.)*.4;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'shamrock', name:'Shamrock Spiral', tags:['mid'], inputs:[{name:'hue1',def:0.36},{name:'hue2',def:0.30},{name:'speed',def:0.35}], glsl:`
+{id:'shamrock', motion:'spin', name:'Shamrock Spiral', tags:['mid'], inputs:[{name:'hue1',def:0.36},{name:'hue2',def:0.30},{name:'speed',def:0.35}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.2+speed*.4);
@@ -284,7 +285,7 @@ void main(){
   col+=vec3(1.)*step(.996,hash21(floor(gl_FragCoord.xy)))*.8;
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'discoprism', name:'Disco Prism', tags:['hot'], inputs:[{name:'hue1',def:0.0},{name:'hue2',def:0.66},{name:'speed',def:0.6}], glsl:`
+{id:'discoprism', motion:'spin', name:'Disco Prism', tags:['hot'], inputs:[{name:'hue1',def:0.0},{name:'hue2',def:0.66},{name:'speed',def:0.6}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.4+speed*.9);
@@ -296,7 +297,7 @@ void main(){
   col+=vec3(1.)*exp(-r*r*40.)*(.5+.5*sin(t*8.));
   gl_FragColor=vec4(col,1.);
 }`},
-{id:'geotunnel', name:'Geo Tunnel', tags:['hot'], inputs:[{name:'hue1',def:0.5},{name:'hue2',def:0.83},{name:'speed',def:0.5}], glsl:`
+{id:'geotunnel', motion:'spin', name:'Geo Tunnel', tags:['hot'], inputs:[{name:'hue1',def:0.5},{name:'hue2',def:0.83},{name:'speed',def:0.5}], glsl:`
 void main(){
   vec2 uv=gl_FragCoord.xy/RENDERSIZE-.5; uv.x*=RENDERSIZE.x/RENDERSIZE.y;
   float t=TIME*(.4+speed*.9);
@@ -387,7 +388,12 @@ ${used.length?`     Shaders/SimpleShow/*.fs           <- the ${used.length} shad
    your song file.
 3. Render/play. If xLights asks about a missing shader file, browse to
    the Shaders/SimpleShow folder you just unzipped — once per shader.
-
+${Object.keys(S.sequence.plan).some(k=>k.endsWith(FACE_OUTLINE_KEY))?`
+Face outlines: between sung lines the faces' outline submodels carry
+string effects (nested in each face's element). A face only gets these
+when its model has submodels covering its FaceOutline node ranges —
+Boscoyo-style props (@Bulb / @Socket) do out of the box.
+`:''}
 Made with SimpleShow.`)});
   return zipStore(files);
 }
@@ -507,7 +513,7 @@ function karWordOffsets(line){
   line.words.forEach(w=>{ out.push({word:w, chars:ch}); ch+=w.text.length+1; });
   return {offsets:out, total:Math.max(0,ch-1)};
 }
-const KAR_MODES={scroll:'Scrolling', ball:'Bouncing ball', hilite:'Highlighted', outline:'Highlighted + outline'};
+const KAR_MODES={scroll:'Scrolling', hilite:'Highlighted', outline:'Highlighted + outline'};
 /* Build the xsq placements for one screen. Returns [{layer,effect,settings,pal,s,e}].
    xLights bitmap fonts are variable-width, so word positions inside a line
    can't be computed here. The karaoke layout is metrics-free instead:
@@ -543,8 +549,6 @@ function karPlacements(m, mode, lines, accent, baseLayer){
       out.push({layer:baseLayer+2, effect:'Text', settings:T(w.text,font,0,yWord), pal:[accent], s:w.start, e:w.end});
       if(mode==='outline')
         out.push({layer:baseLayer, effect:'Text', settings:T(w.text,font,1,yWord-1), pal:['#000000'], s:w.start, e:w.end});
-      if(mode==='ball')  // the ball drops onto the word for its sung span
-        out.push({layer:baseLayer+3, effect:'Text', settings:T('*',font,0,yWord+font.h+Math.floor(rows/4),{dir:'vector', xe:0, ye:yWord+font.h+1}), pal:[accent], s:w.start, e:w.end});
     });
   });
   return out;
@@ -583,12 +587,6 @@ function renderKaraokeFrame(m, mode, t, accent, bg){
       if(word){
         if(mode==='outline') draw(word.text,yWord,'#000',1);
         draw(word.text,yWord,accent,0);
-        if(mode==='ball'){
-          const pr=(t-word.start)/Math.max(0.05,word.end-word.start);
-          const drop=Math.min(1,pr*3);
-          x.fillStyle=accent; x.beginPath();
-          x.arc(cols/2, yWord-font.h-Math.round((1-drop)*rows/4), 1.6, 0, 7); x.fill();
-        }
       }
     }
   }
@@ -609,53 +607,120 @@ function saveScreenConfig(){
 }
 function screenModeOf(m){
   const c=screenConfig()[m.name]||{};
-  return {mode:c.mode||'choreo', kar:c.kar||'hilite'};
+  const kar=(c.kar && KAR_MODES[c.kar])?c.kar:'hilite';   // retired styles (e.g. 'ball') fall back
+  return {mode:c.mode||'choreo', kar};
 }
-function selectedShaders(){
+/* per-shader targeting: {id -> {screens:bool, props:bool}}.
+   Migrates the old flat _shaders id array (screens-only) on first read. */
+function shaderTargets(){
   const c=screenConfig();
-  const sel=Array.isArray(c._shaders)?c._shaders.filter(id=>SHADERS.some(s=>s.id===id)):null;
-  return (sel&&sel.length)?sel:SHADERS.map(s=>s.id);
+  let t=c._shaderTargets;
+  if(!t || typeof t!=='object'){
+    t={};
+    const legacy=Array.isArray(c._shaders)?c._shaders:null;   // old screens-only selection
+    SHADERS.forEach(s=>{ t[s.id]={screens: legacy?legacy.includes(s.id):true, props:false}; });
+    c._shaderTargets=t; saveScreenConfig();
+  } else {
+    SHADERS.forEach(s=>{ if(!t[s.id]) t[s.id]={screens:true,props:false}; });   // new shaders default screens-on
+  }
+  return t;
+}
+function selectedShaders(){   // enabled for SCREENS/MATRICES (fallback all so screens never go blank)
+  const t=shaderTargets();
+  const on=SHADERS.filter(s=>t[s.id]&&t[s.id].screens).map(s=>s.id);
+  return on.length?on:SHADERS.map(s=>s.id);
+}
+function propShaders(){        // enabled for PROPS (explicit; empty = user picked none)
+  const t=shaderTargets();
+  return SHADERS.filter(s=>t[s.id]&&t[s.id].props).map(s=>s.id);
 }
 function setScreenMode(name,mode){ const c=screenConfig(); (c[name]=c[name]||{}).mode=mode; saveScreenConfig(); renderScreensCard(); }
 function setScreenKar(name,kar){ const c=screenConfig(); (c[name]=c[name]||{}).kar=kar; saveScreenConfig(); }
-function toggleShaderSel(id){
-  const c=screenConfig();
-  let sel=Array.isArray(c._shaders)&&c._shaders.length?c._shaders:SHADERS.map(s=>s.id);
-  sel=sel.includes(id)?sel.filter(x=>x!==id):[...sel,id];
-  c._shaders=sel.length?sel:SHADERS.map(s=>s.id);
+function toggleShaderTarget(id, which){
+  const t=shaderTargets();
+  if(!t[id]) t[id]={screens:false,props:false};
+  t[id][which]=!t[id][which];
   saveScreenConfig(); renderScreensCard();
+}
+/* palette object for the shader thumbnails (follows the chosen show style) */
+function shaderPreviewPalette(){
+  const styleEl=document.getElementById('styleSel');
+  const style=(S.sequence&&S.sequence.style)||(styleEl&&styleEl.value)||'traditional';
+  return PALETTES[style]||PALETTES.traditional;
+}
+/* paint one representative shader frame into a small tile canvas */
+function paintShaderThumb(cv, sh){
+  if(!cv) return;
+  const img=(typeof renderShaderFrame==='function')?renderShaderFrame(sh, 1.4, shaderPreviewPalette()):null;
+  const ctx=cv.getContext('2d');
+  if(!img){ ctx.fillStyle='#05060f'; ctx.fillRect(0,0,cv.width,cv.height); return; }
+  const w=img.w, h=img.h;
+  const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
+  const id=tmp.getContext('2d').createImageData(w,h);
+  if(img.flipY){ for(let y=0;y<h;y++){ const sy=h-1-y; id.data.set(img.data.subarray(sy*w*4,(sy+1)*w*4), y*w*4); } }
+  else id.data.set(img.data);
+  tmp.getContext('2d').putImageData(id,0,0);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(tmp,0,0,cv.width,cv.height);
+}
+function paintAllShaderThumbs(){
+  SHADERS.forEach(sh=>{ const cv=document.getElementById('shthumb_'+sh.id); if(cv) paintShaderThumb(cv,sh); });
 }
 function renderScreensCard(){
   const el=document.getElementById('screensCard'); if(!el) return;
   const screens=S.models.filter(m=>m.role==='Matrix/Screen');
-  if(!screens.length){ el.style.display='none'; return; }
+  const propsForShaders=S.models.some(m=>m.role!=='Skip'&&m.role!=='Singing Face'&&m.role!=='Matrix/Screen'&&!m.fixedColor);
+  if(!screens.length && !propsForShaders){ el.style.display='none'; return; }
   el.style.display='';
-  const sel=selectedShaders();
-  const rows=screens.map(m=>{
-    const {mode,kar}=screenModeOf(m);
-    return `<div class="row" style="align-items:center;margin:3px 0">
-      <span style="min-width:160px">${esc(m.name)}</span>
-      <select onchange="setScreenMode('${esc(m.name)}',this.value)">
-        <option value="choreo" ${mode==='choreo'?'selected':''}>Choreography effects</option>
-        <option value="shaders" ${mode==='shaders'?'selected':''}>Shader graphics</option>
-        <option value="karaoke" ${mode==='karaoke'?'selected':''}>Karaoke words</option>
-        <option value="both" ${mode==='both'?'selected':''}>Karaoke over shaders</option>
-      </select>
-      <select onchange="setScreenKar('${esc(m.name)}',this.value)" ${(mode==='karaoke'||mode==='both')?'':'disabled'}>
-        ${Object.entries(KAR_MODES).map(([k,v])=>`<option value="${k}" ${kar===k?'selected':''}>${v}</option>`).join('')}
-      </select>
+  const t=shaderTargets();
+  const lyricsOn=(S.hasLyrics!==false) && !!(S.lyrics && S.lyrics.lines && S.lyrics.lines.length);
+
+  // --- Card 1: Screens & matrices (only when there are screen models) ---
+  let screensHtml='';
+  if(screens.length){
+    const rows=screens.map(m=>{
+      let {mode,kar}=screenModeOf(m);
+      if(!lyricsOn && (mode==='karaoke'||mode==='both')) mode='shaders';
+      return `<div class="row" style="align-items:center;margin:3px 0">
+        <span style="min-width:160px">${esc(m.name)}</span>
+        <select onchange="setScreenMode('${esc(m.name)}',this.value)">
+          <option value="choreo" ${mode==='choreo'?'selected':''}>Choreography effects</option>
+          <option value="shaders" ${mode==='shaders'?'selected':''}>Shader graphics</option>
+          ${lyricsOn?`<option value="karaoke" ${mode==='karaoke'?'selected':''}>Karaoke words</option>
+          <option value="both" ${mode==='both'?'selected':''}>Karaoke over shaders</option>`:''}
+        </select>
+        ${lyricsOn?`<select onchange="setScreenKar('${esc(m.name)}',this.value)" ${(mode==='karaoke'||mode==='both')?'':'disabled'}>
+          ${Object.entries(KAR_MODES).map(([k,v])=>`<option value="${k}" ${kar===k?'selected':''}>${v}</option>`).join('')}
+        </select>`:''}
+      </div>`;
+    }).join('');
+    screensHtml=`<div class="card"><h3>Screens &amp; matrices</h3>
+      <p class="note">Choose what each matrix or screen shows: the regular choreography, one of your shader graphics, ${lyricsOn?'the karaoke words, or karaoke over a dimmed shader':'or a shader graphic'}. Pick which shaders are available below.</p>
+      ${rows}</div>`;
+  }
+
+  // --- Card 2: Shaders gallery (preview + Screens/Props target per shader) ---
+  const tiles=SHADERS.map(sh=>{
+    const on=t[sh.id]||{screens:false,props:false};
+    return `<div class="shaderTile ${(on.screens||on.props)?'on':''}">
+      <canvas id="shthumb_${sh.id}" width="128" height="80"></canvas>
+      <div class="nm"><span>${esc(sh.name)}</span>${sh.fixed?'':'<span class="pal" title="follows your palette">🎨</span>'}</div>
+      <div class="tgtRow">
+        <span class="tgtChip ${on.screens?'on':''}" onclick="toggleShaderTarget('${sh.id}','screens')" title="Use on screens &amp; matrices">Screens</span>
+        <span class="tgtChip ${on.props?'on':''}" onclick="toggleShaderTarget('${sh.id}','props')" title="Use on props (during Prop focus)">Props</span>
+      </div>
     </div>`;
   }).join('');
-  const chips=SHADERS.map(sh=>`<label class="chip" style="cursor:pointer;margin:2px;display:inline-block;border-color:${sel.includes(sh.id)?'var(--bulb-gold)':'var(--line)'};opacity:${sel.includes(sh.id)?1:0.45}">
-      <input type="checkbox" style="display:none" ${sel.includes(sh.id)?'checked':''} onchange="toggleShaderSel('${sh.id}')">${esc(sh.name)}${sh.fixed?'':' 🎨'}</label>`).join('');
-  el.innerHTML=`<h3>Screens &amp; matrices</h3>
-    <p class="note">Each screen can run the regular choreography, one of ${SHADERS.length} original shaders (🎨 = follows your palette), the karaoke words, or karaoke over a dimmed shader. <b>For shaders in xLights:</b> download the pack and unzip it into your show folder — the sequence points at <code>Shaders/SimpleShow/…​.fs</code>; if xLights asks, point it there once.</p>
-    ${rows}
-    <div style="margin-top:8px">${chips}</div>
-    <div class="row" style="margin-top:8px;align-items:center">
+  const shadersHtml=`<div class="card"><h3>Shaders</h3>
+    <p class="note">${SHADERS.length} original animated shaders (🎨 = recolors to your palette). For each one, choose where it can appear — <b>Screens</b> (matrices &amp; screens), <b>Props</b> (fills resting props while Prop focus is on), or both. Light up both for either. <b>In xLights:</b> download the pack and unzip it into your show folder — the sequence points at <code>Shaders/SimpleShow/…​.fs</code>; if xLights asks, point it there once.</p>
+    <div class="shaderGrid">${tiles}</div>
+    <div class="row" style="margin-top:12px;align-items:center">
       <button class="btn small ghost" onclick="downloadShaderPack()">⬇ Download shader pack (.zip)</button>
       <span class="timeline" style="color:var(--ink-dim)">${SHADERS.length} ISF shaders for the xLights Shader effect</span>
-    </div>`;
+    </div></div>`;
+
+  el.innerHTML=screensHtml+shadersHtml;
+  paintAllShaderThumbs();
 }
 
 /* ================= choreography-time placement builders ================= */
@@ -705,33 +770,123 @@ function screenPlacements(A, P, ms){
   });
   return out;
 }
-/* ============ whole-display canvas moments (rare, one per show) ============
-   For one window the entire display becomes a single graphic: a shader, a
-   slow rotation, or a color fade rendered across the whole house via the
-   all-display group with B_CHOICE_BufferStyle=Per Preview. */
-function canvasMoment(A, P, seedF, allGroupName, opts){
-  if(!allGroupName) return null;
-  if(opts && opts.canvasMoment===false) return null;
-  // the last build (the ramp into the final chorus); else the middle quiet
-  const builds=A.sections.filter(s=>s.kind==='build');
-  let sec=builds[builds.length-1];
-  if(!sec){ const qs=A.sections.filter(s=>s.kind==='quiet'&&s.start>0&&s.end<A.sections[A.sections.length-1].end);
-            sec=qs[Math.floor(qs.length/2)]; }
-  if(!sec || sec.end-sec.start<3) return null;
-  const types=['rotate','fade'];
-  if(typeof selectedShaders==='function' && selectedShaders().length) types.unshift('shader');
-  const type=types[Math.floor(seedF*997)%types.length];
-  let row;
-  if(type==='shader'){
-    const calm=selectedShaders().map(id=>SHADERS.find(s=>s.id===id)).filter(s=>s&&s.tags.includes('calm'));
-    const sh=(calm.length?calm:SHADERS)[Math.floor(seedF*7919)%(calm.length||SHADERS.length)];
-    row=['Shader', shaderSettings(sh,'quiet')+',B_CHOICE_BufferStyle=Per Preview', ['#FFFFFF'], sh];
-  } else if(type==='rotate'){
-    row=['Pinwheel','E_SLIDER_Pinwheel_Arms=3,E_SLIDER_Pinwheel_Speed=4,E_CHOICE_Pinwheel_3D=3D,B_CHOICE_BufferStyle=Per Preview', P.C.slice(0,3), null];
-  } else {
-    row=['ColorWash','E_TEXTCTRL_ColorWash_Cycles=1,B_CHOICE_BufferStyle=Per Preview', P.C.slice(0,3), null];
+/* ============ prop shaders (Prop focus / auto mode) ============
+   On small displays a prop sits dark whenever the choreographer rests it.
+   Prop focus fills those gaps automatically with spinning/pulsing shaders —
+   auto-selected per section from the motion-tagged subset of the catalog,
+   no user picking required. Speed follows section energy (Shader_Speed). */
+function propShaderFor(kind, idx, seedF){
+  const want=kind==='quiet'?'calm':(kind==='verse'?'mid':'hot');
+  const picked=propShaders().map(id=>SHADERS.find(s=>s.id===id)).filter(s=>s&&s.motion);
+  const all=picked.length?picked:SHADERS.filter(s=>s.motion);   // none picked → all motion (prior behavior)
+  let pool=all.filter(s=>s.tags.includes(want));
+  if(!pool.length) pool=all;
+  return pool[Math.floor(seedF*9973+idx)%pool.length];
+}
+/* Extra rows per prop, keyed by model name; call AFTER the choreography plan
+   is compiled (gaps are read from it) and BEFORE the canvas moment (so these
+   rows get cleared out of the whole-display window like everything else). */
+function propShaderPlacements(plan, A, ms){
+  const out={};
+  const PAD=0.25, MIN_GAP=3;
+  S.models.forEach(m=>{
+    if(m.role==='Skip'||m.role==='Singing Face'||m.role==='Matrix/Screen'||m._screenTaken) return;
+    if(m.fixedColor) return;   // single-color strings can't show shader colors
+    const rows=plan[m.name]; if(!rows) return;
+    // busy = merged spans of everything already on this prop, any layer
+    const busy=rows.map(r=>[r[4]/1000,r[5]/1000]).sort((a,b)=>a[0]-b[0]);
+    const merged=[];
+    busy.forEach(w=>{ const p=merged[merged.length-1];
+      if(p && w[0]<=p[1]+0.05) p[1]=Math.max(p[1],w[1]); else merged.push([...w]); });
+    const gaps=[]; let cur=A.musicStart??0;
+    merged.forEach(([s,e])=>{ if(s-cur>=MIN_GAP) gaps.push([cur+PAD,s-PAD]); cur=Math.max(cur,e); });
+    const end=A.musicEnd??cur;
+    if(end-cur>=MIN_GAP) gaps.push([cur+PAD,end-PAD]);
+    if(!gaps.length) return;
+    const seedF=(typeof hashF==='function')?hashF(m.name,7):0.5;
+    const extra=[];
+    A.sections.forEach((sec,si)=>{
+      gaps.forEach(([gs,ge])=>{
+        const s=Math.max(sec.start,gs), e=Math.min(sec.end,ge);
+        if(e-s<1) return;
+        extra.push([0,'Shader',shaderSettings(propShaderFor(sec.kind,si,seedF),sec.kind),['#FFFFFF'],ms(s),ms(e)]);
+      });
+    });
+    if(extra.length) out[m.name]=extra;
+  });
+  return out;
+}
+/* settings string → catalog shader, for the preview's per-node sampling */
+function shaderByFile(settings){
+  const m=/Shaders\/SimpleShow\/([^,=]+)\.fs/.exec(settings||'');
+  if(!m) return null;
+  return SHADERS.find(sh=>sh.name.replace(/[^\w ]/g,'')===m[1])||null;
+}
+/* ========= whole-display canvas moments (short, a few per show) =========
+   A handful of times per show the entire display briefly becomes a single
+   graphic: a shader, a slow rotation, or a color fade rendered across the
+   whole house via the all-display group with B_CHOICE_BufferStyle=Per Preview.
+   Each moment is capped to ~10-15s and anchored to a downbeat, so a long
+   section never turns into one endless house-wide fade. Returns an array
+   (empty when disabled / no room). */
+function canvasMoments(A, P, seedF, allGroupName, opts){
+  if(!allGroupName) return [];
+  if(opts && opts.canvasMoment===false) return [];
+  const secs=A.sections||[];
+  if(!secs.length) return [];
+  const showStart=secs[0].start, showEnd=secs[secs.length-1].end, span=showEnd-showStart;
+  if(span<8) return [];
+  // candidate sections = builds (ramps) + quiet breaks only. Verses and choruses
+  // are left alone so singing faces keep singing and the hero tree keeps its
+  // showcased rotation — a whole-display takeover belongs on a ramp or a break.
+  let pool=secs.filter(s=>(s.kind==='build' || (s.kind==='quiet'&&s.start>0)) && s.end-s.start>=3);
+  if(!pool.length) pool=secs.filter(s=>s.start>0 && s.end-s.start>=3);   // degenerate: any non-opening section
+  if(!pool.length) return [];
+  // how many: ~1 per 50s, aim for 3-6, capped to what the pool supplies
+  let want=Math.max(3, Math.min(6, Math.round(span/50)||3));
+  want=Math.min(want, pool.length);
+  // spread across the timeline: bucket it and take the pool section nearest each centre
+  const mid=s=>(s.start+s.end)/2;
+  const chosen=[], used=new Set();
+  for(let b=0;b<want;b++){
+    const centre=showStart+span*(b+0.5)/want;
+    let best=-1, bestD=Infinity;
+    pool.forEach((s,i)=>{ if(used.has(i))return; const d=Math.abs(mid(s)-centre); if(d<bestD){bestD=d;best=i;} });
+    if(best<0) break;
+    used.add(best); chosen.push(pool[best]);
   }
-  return {type, start:sec.start, end:sec.end, effect:row[0], settings:row[1], pal:row[2], shader:row[3], el:allGroupName};
+  chosen.sort((a,b)=>a.start-b.start);
+  const downbeats=A.downbeats||[];
+  const types=['rotate','fade'];
+  if(typeof selectedShaders==='function' && selectedShaders().length) types.push('shader');
+  const typeBase=Math.floor(seedF*997);
+  const out=[];
+  chosen.forEach((sec,idx)=>{
+    const secLen=sec.end-sec.start;
+    let len=10 + (Math.floor(seedF*(idx+3)*131)%6);   // 10-15s
+    len=Math.min(len, secLen);
+    if(len<3) return;
+    // anchor start to a downbeat inside the section that leaves room for the window
+    const latest=sec.end-len;
+    const cands=downbeats.filter(d=>d>=sec.start && d<=latest);
+    let start=cands.length ? cands[Math.floor(seedF*(idx+1)*613)%cands.length] : sec.start;
+    if(start>latest) start=Math.max(sec.start, latest);
+    const type=types[(typeBase+idx)%types.length];   // vary type across moments
+    let row;
+    if(type==='shader'){
+      const sel=selectedShaders();
+      const calm=sel.map(id=>SHADERS.find(s=>s.id===id)).filter(s=>s&&s.tags.includes('calm'));
+      const shPool=calm.length?calm:SHADERS;
+      const sh=shPool[Math.floor(seedF*7919*(idx+1))%shPool.length];
+      row=['Shader', shaderSettings(sh,'quiet')+',B_CHOICE_BufferStyle=Per Preview', ['#FFFFFF'], sh];
+    } else if(type==='rotate'){
+      row=['Pinwheel','E_SLIDER_Pinwheel_Arms=3,E_SLIDER_Pinwheel_Speed=4,E_CHOICE_Pinwheel_3D=3D,B_CHOICE_BufferStyle=Per Preview', P.C.slice(0,3), null];
+    } else {
+      row=['ColorWash','E_TEXTCTRL_ColorWash_Cycles=1,B_CHOICE_BufferStyle=Per Preview', P.C.slice(0,3), null];
+    }
+    out.push({type, start, end:start+len, effect:row[0], settings:row[1], pal:row[2], shader:row[3], el:allGroupName});
+  });
+  return out;
 }
 /* one shared image per frame during the moment, sampled house-wide */
 let _cmCanvas=null;
