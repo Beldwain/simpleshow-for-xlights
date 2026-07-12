@@ -317,8 +317,8 @@ progress{width:100%;height:8px;accent-color:var(--bulb-gold)}
     <div class="row" style="margin-top:8px;align-items:center;flex-wrap:wrap">
       <input type="text" id="lrcArtist" placeholder="Artist" style="width:170px">
       <input type="text" id="lrcTitle" placeholder="Song title" style="width:210px">
-      <button class="btn small ghost" onclick="searchLrclib()">🌐 Find synced lyrics online</button>
-      <span class="timeline" style="color:var(--ink-dim)">searches the free lrclib.net database (sends only artist &amp; title)</span>
+      <button class="btn small ghost" id="lrcSearchBtn" onclick="searchLrclib()">🌐 Find synced lyrics online</button>
+      <span class="timeline" style="color:var(--ink-dim)">searches the free lrclib.net database (sends only artist &amp; title) · lrclib can be slow, hang tight</span>
     </div>
     <div id="lrcResults" class="timeline" style="margin-top:4px"></div>
     <label class="opt"><input type="checkbox" id="skipIntro" checked> Keep lyrics inside the sung parts — skip instrumental intro, outro, and mid-song breaks</label>
@@ -2136,26 +2136,62 @@ function guessArtistTitle(fname){
   const parts=s.split(/\s+-\s+/);
   return parts.length>=2 ? {artist:parts[0].trim(), title:parts.slice(1).join(' - ').trim()} : {artist:'', title:s};
 }
+// lrclib.net is slow (7–9s typical) and intermittently 504s; give it room but
+// never hang, and retry the transient failures that make search "hit and miss".
+async function lrcFetch(url, {timeoutMs=13000, retries=1}={}){
+  for(let attempt=0; ;attempt++){
+    const ctl=new AbortController();
+    const timer=setTimeout(()=>ctl.abort(), timeoutMs);
+    try{
+      const r=await fetch(url,{signal:ctl.signal});
+      clearTimeout(timer);
+      // 5xx (incl. 504) and 429 are transient — retry once before giving up
+      if((r.status>=500 || r.status===429) && attempt<retries) continue;
+      return r;
+    }catch(e){
+      clearTimeout(timer);
+      if(attempt<retries && e.name==='AbortError') continue; // one more shot on timeout
+      throw e;
+    }
+  }
+}
+// turns a non-ok HTTP status into a message that names the real cause
+function lrcStatusMessage(status){
+  if(status===429) return 'lrclib.net is rate-limiting requests — wait a few seconds and try again.';
+  if(status>=500) return `lrclib.net is having trouble right now (server ${status}) — try again in a moment.`;
+  return `lrclib.net returned an error (status ${status}) — try again, or paste the lyrics instead.`;
+}
 async function searchLrclib(){
   const el=document.getElementById('lrcResults');
+  const btn=document.getElementById('lrcSearchBtn');
   const artist=document.getElementById('lrcArtist').value.trim();
   const title=document.getElementById('lrcTitle').value.trim();
   if(!title){ el.textContent='Type at least the song title.'; return; }
-  el.textContent='Searching lrclib.net…';
-  const dur=S.audio?Math.round(S.audio.duration):0;
+  if(navigator.onLine===false){ el.textContent='You appear to be offline — connect to the internet to search lrclib.net.'; return; }
+  el.textContent='Searching lrclib.net… (can take ~10s)';
+  if(btn) btn.disabled=true;
   try{
-    let list=[];
-    if(artist && dur){   // exact match first: artist + title + duration
-      const r=await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=${dur}`);
-      if(r.ok){ const j=await r.json(); if(j && j.syncedLyrics) list=[j]; }
+    // /api/search?q= is the fast, reliable endpoint; /api/get and structured
+    // search frequently 504. Duration matching is done in renderLrcResults (✅).
+    const q=(artist?artist+' ':'')+title;
+    const r=await lrcFetch(`https://lrclib.net/api/search?q=${encodeURIComponent(q)}`);
+    if(!r.ok){ el.textContent=lrcStatusMessage(r.status); return; }
+    const all=await r.json();
+    const synced=(Array.isArray(all)?all:[]).filter(x=>x && x.syncedLyrics);
+    if(!synced.length){
+      el.textContent=(Array.isArray(all)&&all.length)
+        ? 'Found the song but no synced lyrics are available — you can still paste or load plain lyrics.'
+        : 'No match on lrclib.net for that artist/title — check spelling, or paste the lyrics instead.';
+      return;
     }
-    if(!list.length){
-      const r=await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent((artist?artist+' ':'')+title)}`);
-      if(r.ok) list=(await r.json()).filter(x=>x && x.syncedLyrics);
-    }
-    if(!list.length){ el.textContent='No synced lyrics found for that search — paste or load the lyrics instead.'; return; }
-    renderLrcResults(list.slice(0,6));
-  }catch(e){ el.textContent="Couldn't reach lrclib.net — check your connection, or paste the lyrics instead."; }
+    renderLrcResults(synced.slice(0,6));
+  }catch(e){
+    el.textContent = e.name==='AbortError'
+      ? "lrclib.net timed out (it's slow today) — press search again to retry."
+      : "Couldn't reach lrclib.net — you may be offline, or the site is blocking the request.";
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 function renderLrcResults(list){
   S._lrcCandidates=list;
