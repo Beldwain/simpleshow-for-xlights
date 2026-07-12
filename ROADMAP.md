@@ -3,7 +3,7 @@
 The initial build works end-to-end against current xLights builds (verified
 July 2026). Remaining priorities, in order:
 
-## 1. Deepen the choreography (v1 shipped 2026-07-06; layer stack 2026-07-06)
+## 1. Deepen the choreography (v0.9.5.rc3 layer stack 2026-07-06)
 
 The choreography-first generator and the bed/moves/rhythm/accent layer stack
 are live (see Shipped). Next layers on top:
